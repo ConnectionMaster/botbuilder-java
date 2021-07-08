@@ -3,6 +3,7 @@
 
 package com.microsoft.bot.builder;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.microsoft.bot.connector.Async;
 import java.net.HttpURLConnection;
 import java.util.List;
@@ -11,13 +12,14 @@ import java.util.concurrent.CompletionException;
 
 import org.apache.commons.lang3.StringUtils;
 
-import com.microsoft.bot.connector.ConnectorClient;
 import com.microsoft.bot.schema.Activity;
 import com.microsoft.bot.schema.ActivityTypes;
+import com.microsoft.bot.schema.AdaptiveCardInvokeResponse;
+import com.microsoft.bot.schema.AdaptiveCardInvokeValue;
 import com.microsoft.bot.schema.ChannelAccount;
-import com.microsoft.bot.schema.HealthCheckResponse;
 import com.microsoft.bot.schema.MessageReaction;
 import com.microsoft.bot.schema.ResourceResponse;
+import com.microsoft.bot.schema.Serialization;
 import com.microsoft.bot.schema.SignInConstants;
 
 /**
@@ -86,6 +88,15 @@ public class ActivityHandler implements Bot {
 
             case ActivityTypes.INSTALLATION_UPDATE:
                 return onInstallationUpdate(turnContext);
+
+            case ActivityTypes.COMMAND:
+                return onCommandActivity(turnContext);
+
+            case ActivityTypes.COMMAND_RESULT:
+                return onCommandResultActivity(turnContext);
+
+            case ActivityTypes.END_OF_CONVERSATION:
+                return onEndOfConversationActivity(turnContext);
 
             case ActivityTypes.TYPING:
                 return onTypingActivity(turnContext);
@@ -391,6 +402,16 @@ public class ActivityHandler implements Bot {
      * @return A task that represents the work queued to execute.
      */
     protected CompletableFuture<InvokeResponse> onInvokeActivity(TurnContext turnContext) {
+        if (StringUtils.equals(turnContext.getActivity().getName(), "adaptiveCard/action")) {
+            AdaptiveCardInvokeValue invokeValue = null;
+            try {
+                invokeValue = getAdaptiveCardInvokeValue(turnContext.getActivity());
+            } catch (InvokeResponseException e) {
+                return Async.completeExceptionally(e);
+            }
+            return onAdaptiveCardInvoke(turnContext, invokeValue).thenApply(result -> createInvokeResponse(result));
+        }
+
         if (
             StringUtils.equals(
                 turnContext.getActivity().getName(), SignInConstants.VERIFY_STATE_OPERATION_NAME
@@ -412,10 +433,6 @@ public class ActivityHandler implements Bot {
                     }
                     return new InvokeResponse(HttpURLConnection.HTTP_INTERNAL_ERROR, null);
                 });
-        } else if (StringUtils.equals(turnContext.getActivity().getName(), "healthCheck")) {
-            CompletableFuture<InvokeResponse> result = new CompletableFuture<>();
-            result.complete(new InvokeResponse(HttpURLConnection.HTTP_OK, onHealthCheck(turnContext)));
-            return result;
         }
 
         CompletableFuture<InvokeResponse> result = new CompletableFuture<>();
@@ -445,18 +462,6 @@ public class ActivityHandler implements Bot {
             new InvokeResponseException(HttpURLConnection.HTTP_NOT_IMPLEMENTED)
         );
         return result;
-    }
-
-    /**
-     * Invoked when a 'healthCheck' event is
-     * received when the base behavior of onInvokeActivity is used.
-     *
-     * @param turnContext The current TurnContext.
-     * @return A task that represents a HealthCheckResponse.
-     */
-    protected CompletableFuture<HealthCheckResponse> onHealthCheck(TurnContext turnContext) {
-        ConnectorClient client = turnContext.getTurnState().get(BotFrameworkAdapter.CONNECTOR_CLIENT_KEY);
-        return CompletableFuture.completedFuture(HealthCheck.createHealthCheckResponse(client));
     }
 
     /**
@@ -544,6 +549,62 @@ public class ActivityHandler implements Bot {
     }
 
     /**
+     * Invoked when a command activity is received when the base behavior of
+     * {@link ActivityHandler#onTurn(TurnContext)} is used. Commands are requests to perform an
+     * action and receivers typically respond with one or more commandResult
+     * activities. Receivers are also expected to explicitly reject unsupported
+     * command activities.
+     *
+     * @param turnContext  A strongly-typed context Object for this
+     *                     turn.
+     *
+     * @return   A task that represents the work queued to execute.
+     *
+     * When the {@link ActivityHandler#onTurn(TurnContext)} method receives a command activity,
+     * it calls this method. In a derived class, override this method to add
+     * logic that applies to all comand activities. Add logic to apply before
+     * the specific command-handling logic before the call to the base class
+     * {@link ActivityHandler#onCommandActivity(TurnContext)} method. Add
+     * logic to apply after the specific command-handling logic after the call
+     * to the base class
+     * {@link ActivityHandler#onCommandActivity(TurnContext)} method. Command
+     * activities communicate programmatic information from a client or channel
+     * to a bot. The meaning of an command activity is defined by the
+     * name property, which is meaningful within the scope of a channel.
+     */
+    protected CompletableFuture<Void> onCommandActivity(TurnContext turnContext) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * Invoked when a CommandResult activity is received when the
+     * base behavior of {@link ActivityHandler#onTurn(TurnContext)} is used. CommandResult
+     * activities can be used to communicate the result of a command execution.
+     *
+     * @param turnContext  A strongly-typed context Object for this
+     *                     turn.
+     *
+     * @return   A task that represents the work queued to execute.
+     *
+     * When the {@link ActivityHandler#onTurn(TurnContext)} method receives a CommandResult
+     * activity, it calls this method. In a derived class, override this method
+     * to add logic that applies to all comand activities. Add logic to apply
+     * before the specific CommandResult-handling logic before the call to the
+     * base class
+     * {@link ActivityHandler#onCommandResultActivity(TurnContext)}
+     * method. Add logic to apply after the specific CommandResult-handling
+     * logic after the call to the base class
+     * {@link ActivityHandler#onCommandResultActivity(TurnContext)}
+     * method. CommandResult activities communicate programmatic information
+     * from a client or channel to a bot. The meaning of an CommandResult
+     * activity is defined by the name property,
+     * which is meaningful within the scope of a channel.
+     */
+    protected CompletableFuture<Void> onCommandResultActivity(TurnContext turnContext) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    /**
      * Override this in a derived class to provide logic specific to ActivityTypes.InstallationUpdate
      * activities with 'action' set to 'add'.
      *
@@ -562,6 +623,36 @@ public class ActivityHandler implements Bot {
      * @return A task that represents the work queued to execute.
      */
     protected CompletableFuture<Void> onInstallationUpdateRemove(TurnContext turnContext) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * Invoked when the bot is sent an Adaptive Card Action Execute.
+     *
+     * @param turnContext  A strongly-typed context Object for this
+     *                     turn.
+     * @param invokeValue  A stringly-typed Object from the incoming
+     *                     activity's Value.
+     *
+     * @return   A task that represents the work queued to execute.
+     *
+     * When the {@link OnInvokeActivity(TurnContext{InvokeActivity})} method
+     * receives an Invoke with a {@link InvokeActivity#name} of
+     * `adaptiveCard/action`, it calls this method.
+     */
+    protected CompletableFuture<AdaptiveCardInvokeResponse> onAdaptiveCardInvoke(
+        TurnContext turnContext, AdaptiveCardInvokeValue invokeValue) {
+        return Async.completeExceptionally(new InvokeResponseException(HttpURLConnection.HTTP_NOT_IMPLEMENTED));
+    }
+
+    /**
+     * Override this in a derived class to provide logic specific to
+     * ActivityTypes.END_OF_CONVERSATION activities.
+     *
+     * @param turnContext The context object for this turn.
+     * @return A task that represents the work queued to execute.
+     */
+    protected CompletableFuture<Void> onEndOfConversationActivity(TurnContext turnContext) {
         return CompletableFuture.completedFuture(null);
     }
 
@@ -603,6 +694,62 @@ public class ActivityHandler implements Bot {
     protected CompletableFuture<Void> onUnrecognizedActivityType(TurnContext turnContext) {
         return CompletableFuture.completedFuture(null);
     }
+
+    private AdaptiveCardInvokeValue getAdaptiveCardInvokeValue(Activity activity) throws InvokeResponseException {
+        if (activity.getValue() == null) {
+            AdaptiveCardInvokeResponse response = createAdaptiveCardInvokeErrorResponse(
+                HttpURLConnection.HTTP_BAD_REQUEST, "BadRequest", "Missing value property");
+            throw new InvokeResponseException(HttpURLConnection.HTTP_BAD_REQUEST, response);
+        }
+
+        Object obj = activity.getValue();
+        JsonNode node = null;
+        if (obj instanceof JsonNode) {
+            node = (JsonNode) obj;
+        } else {
+            AdaptiveCardInvokeResponse response = createAdaptiveCardInvokeErrorResponse(
+                HttpURLConnection.HTTP_BAD_REQUEST, "BadRequest", "Value property instanceof not properly formed");
+            throw new InvokeResponseException(HttpURLConnection.HTTP_BAD_REQUEST, response);
+        }
+
+        AdaptiveCardInvokeValue invokeValue = Serialization.treeToValue(node, AdaptiveCardInvokeValue.class);
+        if (invokeValue == null) {
+            AdaptiveCardInvokeResponse response = createAdaptiveCardInvokeErrorResponse(
+                HttpURLConnection.HTTP_BAD_REQUEST, "BadRequest", "Value property instanceof not properly formed");
+            throw new InvokeResponseException(HttpURLConnection.HTTP_BAD_REQUEST, response);
+        }
+
+        if (invokeValue.getAction() == null) {
+            AdaptiveCardInvokeResponse response = createAdaptiveCardInvokeErrorResponse(
+                HttpURLConnection.HTTP_BAD_REQUEST, "BadRequest", "Missing action property");
+            throw new InvokeResponseException(HttpURLConnection.HTTP_BAD_REQUEST, response);
+        }
+
+        if (!invokeValue.getAction().getType().equals("Action.Execute")) {
+            AdaptiveCardInvokeResponse response = createAdaptiveCardInvokeErrorResponse(
+                HttpURLConnection.HTTP_BAD_REQUEST, "NotSupported",
+                    String.format("The action '%s'is not supported.", invokeValue.getAction().getType()));
+            throw new InvokeResponseException(HttpURLConnection.HTTP_BAD_REQUEST, response);
+        }
+
+        return invokeValue;
+    }
+
+    private AdaptiveCardInvokeResponse createAdaptiveCardInvokeErrorResponse(
+        Integer statusCode,
+        String code,
+        String message
+    ) {
+        AdaptiveCardInvokeResponse adaptiveCardInvokeResponse = new AdaptiveCardInvokeResponse();
+        adaptiveCardInvokeResponse.setStatusCode(statusCode);
+        adaptiveCardInvokeResponse.setType("application/vnd.getmicrosoft().error");
+        com.microsoft.bot.schema.Error error = new com.microsoft.bot.schema.Error();
+        error.setCode(code);
+        error.setMessage(message);
+        adaptiveCardInvokeResponse.setValue(error);
+        return adaptiveCardInvokeResponse;
+    }
+
 
     /**
      * InvokeResponse Exception.

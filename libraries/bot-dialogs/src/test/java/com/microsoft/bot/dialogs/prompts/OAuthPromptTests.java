@@ -31,6 +31,7 @@ import com.microsoft.bot.schema.ChannelAccount;
 import com.microsoft.bot.schema.ConversationAccount;
 import com.microsoft.bot.schema.InputHints;
 import com.microsoft.bot.schema.OAuthCard;
+import com.microsoft.bot.schema.Serialization;
 import com.microsoft.bot.schema.SignInConstants;
 import com.microsoft.bot.schema.TokenExchangeInvokeRequest;
 import com.microsoft.bot.schema.TokenExchangeInvokeResponse;
@@ -83,12 +84,10 @@ public class OAuthPromptTests {
             dialogs.add(prompt);
             ConversationAccount conversation = new ConversationAccount();
             conversation.setId("123");
-            TurnContextImpl tc = new TurnContextImpl(adapter, new Activity(ActivityTypes.MESSAGE) {
-                {
-                    setConversation(conversation);
-                    setChannelId("test");
-                }
-            });
+            Activity activity = new Activity(ActivityTypes.MESSAGE);
+            activity.setConversation(conversation);
+            activity.setChannelId("test");
+            TurnContextImpl tc = new TurnContextImpl(adapter, activity);
 
             DialogContext dc = dialogs.createContext(tc).join();
 
@@ -130,9 +129,9 @@ public class OAuthPromptTests {
                 dc.prompt("OAuthPrompt", new PromptOptions());
             } else if (results.getStatus() == DialogTurnStatus.COMPLETE) {
                 if (results.getResult() instanceof TokenResponse) {
-                    turnContext.sendActivity(MessageFactory.text("Logged in."));
+                    turnContext.sendActivity(MessageFactory.text("Logged in.")).join();
                 } else {
-                    turnContext.sendActivity(MessageFactory.text("Failed."));
+                    turnContext.sendActivity(MessageFactory.text("Failed.")).join();
                 }
             }
             return CompletableFuture.completedFuture(null);
@@ -289,6 +288,13 @@ public class OAuthPromptTests {
             return CompletableFuture.completedFuture(null);
         };
 
+        TokenExchangeInvokeRequest value = new TokenExchangeInvokeRequest();
+        value.setConnectionName(connectionName);
+        value.setToken(exchangeToken);
+        Activity activityToSend = new Activity(ActivityTypes.INVOKE);
+        activityToSend.setName(SignInConstants.TOKEN_EXCHANGE_OPERATION_NAME);
+        activityToSend.setValue(Serialization.objectToTree(value));
+
         new TestFlow(adapter, botCallbackHandler)
         .send("hello")
         .assertReply(activity -> {
@@ -300,16 +306,7 @@ public class OAuthPromptTests {
             adapter.addExchangeableToken(connectionName, activity.getChannelId(),
                                          activity.getRecipient().getId(), exchangeToken, token);
         })
-        .send(new Activity(ActivityTypes.INVOKE) {
-            {
-                setName(SignInConstants.TOKEN_EXCHANGE_OPERATION_NAME);
-                setValue(new TokenExchangeInvokeRequest() {
-                {
-                    setConnectionName(connectionName);
-                    setToken(exchangeToken);
-                }
-            });
-        }})
+        .send(activityToSend)
         .assertReply(a -> {
             Assert.assertEquals("invokeResponse", a.getType());
             InvokeResponse response = (InvokeResponse) ((Activity)a).getValue();
@@ -361,6 +358,13 @@ public class OAuthPromptTests {
             return CompletableFuture.completedFuture(null);
         };
 
+        TokenExchangeInvokeRequest value = new TokenExchangeInvokeRequest();
+        value.setConnectionName(connectionName);
+        value.setToken(exchangeToken);
+        Activity activityToSend = new Activity(ActivityTypes.INVOKE);
+        activityToSend.setName(SignInConstants.TOKEN_EXCHANGE_OPERATION_NAME);
+        activityToSend.setValue(Serialization.objectToTree(value));
+
         new TestFlow(adapter, botCallbackHandler)
         .send("hello")
         .assertReply(activity -> {
@@ -369,16 +373,7 @@ public class OAuthPromptTests {
             Assert.assertEquals(InputHints.ACCEPTING_INPUT, ((Activity) activity).getInputHint());
             // No exchangable token is added to the adapter
         })
-        .send(new Activity(ActivityTypes.INVOKE) {
-            {
-                setName(SignInConstants.TOKEN_EXCHANGE_OPERATION_NAME);
-                setValue(new TokenExchangeInvokeRequest() {
-                {
-                    setConnectionName(connectionName);
-                    setToken(exchangeToken);
-                }
-            });
-        }})
+        .send(activityToSend)
         .assertReply(a -> {
             Assert.assertEquals("invokeResponse", a.getType());
             InvokeResponse response = (InvokeResponse) ((Activity) a).getValue();
@@ -428,6 +423,8 @@ public class OAuthPromptTests {
             return CompletableFuture.completedFuture(null);
         };
 
+        Activity activityToSend = new Activity(ActivityTypes.INVOKE);
+        activityToSend.setName(SignInConstants.TOKEN_EXCHANGE_OPERATION_NAME);
         new TestFlow(adapter, botCallbackHandler)
         .send("hello")
         .assertReply(activity -> {
@@ -436,11 +433,7 @@ public class OAuthPromptTests {
             Assert.assertEquals(InputHints.ACCEPTING_INPUT, ((Activity) activity).getInputHint());
             // No exchangable token is added to the adapter
         })
-        .send(new Activity(ActivityTypes.INVOKE) {
-            {
-                setName(SignInConstants.TOKEN_EXCHANGE_OPERATION_NAME);
-            }
-        })
+        .send(activityToSend)
         .assertReply(a -> {
             Assert.assertEquals("invokeResponse", a.getType());
             InvokeResponse response = (InvokeResponse) ((Activity) a).getValue();
@@ -491,6 +484,12 @@ public class OAuthPromptTests {
             return CompletableFuture.completedFuture(null);
         };
 
+        TokenExchangeInvokeRequest value = new TokenExchangeInvokeRequest();
+        value.setConnectionName("beepboop");
+        value.setToken(exchangeToken);
+        Activity activityToSend = new Activity(ActivityTypes.INVOKE);
+        activityToSend.setName(SignInConstants.TOKEN_EXCHANGE_OPERATION_NAME);
+        activityToSend.setValue(value);
         new TestFlow(adapter, botCallbackHandler)
         .send("hello")
         .assertReply(activity -> {
@@ -499,16 +498,7 @@ public class OAuthPromptTests {
             Assert.assertEquals(InputHints.ACCEPTING_INPUT, ((Activity) activity).getInputHint());
             // No exchangable token is added to the adapter
         })
-        .send(new Activity(ActivityTypes.INVOKE) {
-            {
-                setName(SignInConstants.TOKEN_EXCHANGE_OPERATION_NAME);
-                setValue(new TokenExchangeInvokeRequest() {
-                {
-                    setConnectionName("beepboop");
-                    setToken(exchangeToken);
-                }
-            });
-        }})
+        .send(activityToSend)
         .assertReply(a -> {
             Assert.assertEquals("invokeResponse", a.getType());
             InvokeResponse response = (InvokeResponse) ((Activity) a).getValue();
@@ -542,27 +532,31 @@ public class OAuthPromptTests {
                                         token);
 
             // Positive case: Token
-            TokenResponse result = adapter.exchangeToken(turnContext, connectionName, userId,
-                                            new TokenExchangeRequest() {{ setToken(exchangeToken); }}).join();
+            TokenExchangeRequest requestPositiveToken = new TokenExchangeRequest();
+            requestPositiveToken.setToken(exchangeToken);
+            TokenResponse result = adapter.exchangeToken(turnContext, connectionName, userId, requestPositiveToken).join();
             Assert.assertNotNull(result);
             Assert.assertEquals(token, result.getToken());
             Assert.assertEquals(connectionName, result.getConnectionName());
 
             // Positive case: URI
-            result = adapter.exchangeToken(turnContext, connectionName, userId,
-                                            new TokenExchangeRequest() { { setUri(exchangeToken); }}).join();
+            TokenExchangeRequest requestPositiveURI = new TokenExchangeRequest();
+            requestPositiveURI.setUri(exchangeToken);
+            result = adapter.exchangeToken(turnContext, connectionName, userId, requestPositiveURI).join();
             Assert.assertNotNull(result);
             Assert.assertEquals(token, result.getToken());
             Assert.assertEquals(connectionName, result.getConnectionName());
 
             // Negative case: Token
-            result = adapter.exchangeToken(turnContext, connectionName, userId,
-                                            new TokenExchangeRequest() {{ setToken("beeboop"); }}).join();
+            TokenExchangeRequest requestNegativeToken = new TokenExchangeRequest();
+            requestNegativeToken.setToken("beeboop");
+            result = adapter.exchangeToken(turnContext, connectionName, userId, requestNegativeToken).join();
             Assert.assertNull(result);
 
             // Negative case: URI
-            result = adapter.exchangeToken(turnContext, connectionName, userId,
-                                            new TokenExchangeRequest() {{ setUri("beeboop"); }}).join();
+            TokenExchangeRequest requestNegativeURI = new TokenExchangeRequest();
+            requestNegativeURI.setToken("beeboop");
+            result = adapter.exchangeToken(turnContext, connectionName, userId, requestNegativeURI).join();
             Assert.assertNull(result);
 
             return CompletableFuture.completedFuture(null);
@@ -599,9 +593,9 @@ public class OAuthPromptTests {
                 dc.prompt("OAuthPrompt", new PromptOptions());
             } else if (results.getStatus() == DialogTurnStatus.COMPLETE) {
                 if (results.getResult() instanceof TokenResponse) {
-                    turnContext.sendActivity(MessageFactory.text("Logged in."));
+                    turnContext.sendActivity(MessageFactory.text("Logged in.")).join();
                 } else {
-                    turnContext.sendActivity(MessageFactory.text("Failed."));
+                    turnContext.sendActivity(MessageFactory.text("Failed.")).join();
                 }
             }
             return CompletableFuture.completedFuture(null);

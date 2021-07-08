@@ -162,13 +162,13 @@ public class FrenchNumericWithUnit {
         .put("Ban", "bani|-ban|ban")
         .put("Roupie népalaise", "roupie népalaise|roupie nepalaise|npr")
         .put("Roupie pakistanaise", "roupie pakistanaise|pkr")
-        .put("Roupie indienne", "roupie indienne|inr|roupie indien|inr|₹")
+        .put("Roupie indienne", "roupie indienne|roupies indiennes|inr|roupie indien|inr|₹")
         .put("Roupie seychelloise", "roupie seychelloise|scr|sr|sre")
         .put("Roupie mauricienne", "roupie mauricienne|mur")
         .put("Rufiyaa maldives", "rufiyaa maldives|mvr|.ރ|rf")
         .put("Roupie srilankaise", "roupie srilankaise|lrk|රු|ரூ")
         .put("Rupiah Indonésie", "rupia indonésie|rupia indonesie|rupiah|rp|idr")
-        .put("Roupie", "roupie")
+        .put("Roupie", "roupie|roupies")
         .put("Couronne danoise", "couronne danoise|dkk|couronnes danoise|couronne danemark|couronnes danemark")
         .put("Couronne norvégienne", "couronne norvégienne|couronne norvegienne|couronnes norvégienne|couronnes norvegienne|nok")
         .put("Couronne féroïenne", "couronne féroïenne|couronne feroienne")
@@ -267,6 +267,9 @@ public class FrenchNumericWithUnit {
         .put("Fen", "fen")
         .put("Jiao", "jiao")
         .put("Mark Finlandais", "marks finlandais|mark finlandais|fim|mark")
+        .put("Bitcoin", "bitcoin|bitcoins|btc|xbt|₿")
+        .put("Millibitcoin", "millibitcoin|millibitcoins|milibitcoin|milibitcoins")
+        .put("Satoshi", "satoshi|satoshis")
         .build();
 
     public static final String CompoundUnitConnectorRegex = "(?<spacer>[^.])";
@@ -300,6 +303,7 @@ public class FrenchNumericWithUnit {
         .put("Yen Japonais", "¥|jpy")
         .put("Euro", "€|eur")
         .put("Livre", "£")
+        .put("Bitcoin", "₿|btc|xbt")
         .build();
 
     public static final List<String> AmbiguousCurrencyUnitList = Arrays.asList("din.", "kina", "lari", "taka", "tala", "vatu", "yuan", "bob", "btn", "cop", "cup", "dop", "gip", "jod", "kgs", "lak", "mga", "mop", "nad", "omr", "sar", "sbd", "scr", "sdg", "sek", "sos", "std", "try", "yer");

@@ -32,11 +32,8 @@ public class TranscriptMiddlewareTest {
                 return null;
             }
         };
-        Activity typingActivity = new Activity(ActivityTypes.TYPING) {
-            {
-                setRelatesTo(context.getActivity().getRelatesTo());
-            }
-        };
+        Activity typingActivity = new Activity(ActivityTypes.TYPING);
+        typingActivity.setRelatesTo(context.getActivity().getRelatesTo());
 
         try {
             context.sendActivity(typingActivity).join();
@@ -56,28 +53,21 @@ public class TranscriptMiddlewareTest {
         final String[] conversationId = { null };
 
         new TestFlow(adapter, (context) -> {
+            delay(500);
             conversationId[0] = context.getActivity().getConversation().getId();
-            Activity typingActivity = new Activity(ActivityTypes.TYPING) {
-                {
-                    setRelatesTo(context.getActivity().getRelatesTo());
-                }
-            };
+            Activity typingActivity = new Activity(ActivityTypes.TYPING);
+            typingActivity.setRelatesTo(context.getActivity().getRelatesTo());
 
             context.sendActivity(typingActivity).join();
 
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-                Assert.fail();
-            }
+            delay(500);
 
             context.sendActivity("echo:" + context.getActivity().getText()).join();
             return CompletableFuture.completedFuture(null);
         }
-        ).send("foo").assertReply(
+        ).send("foo").delay(50).assertReply(
             (activity) -> Assert.assertEquals(activity.getType(), ActivityTypes.TYPING)
-        ).assertReply("echo:foo").send("bar").assertReply(
+        ).assertReply("echo:foo").send("bar").delay(50).assertReply(
             (activity) -> Assert.assertEquals(activity.getType(), ActivityTypes.TYPING)
         ).assertReply("echo:bar").startTest().join();
 
@@ -109,6 +99,7 @@ public class TranscriptMiddlewareTest {
         final String[] conversationId = { null };
         final Activity[] activityToUpdate = { null };
         new TestFlow(adapter, (context) -> {
+            delay(500);
             conversationId[0] = context.getActivity().getConversation().getId();
             if (context.getActivity().getText().equals("update")) {
                 activityToUpdate[0].setText("new response");
@@ -152,6 +143,7 @@ public class TranscriptMiddlewareTest {
         final String[] conversationId = { null };
         final String[] activityId = { null };
         new TestFlow(adapter, (context) -> {
+            delay(500);
             conversationId[0] = context.getActivity().getConversation().getId();
             if (context.getActivity().getText().equals("deleteIt")) {
                 context.deleteActivity(activityId[0]).join();
@@ -210,6 +202,7 @@ public class TranscriptMiddlewareTest {
         final String[] conversationId = { null };
         final Activity[] activityToUpdate = { null };
         new TestFlow(adapter, (context) -> {
+            delay(500);
             conversationId[0] = context.getActivity().getConversation().getId();
             if (context.getActivity().getText().equals("update")) {
                 activityToUpdate[0].setText("new response");
@@ -278,11 +271,12 @@ public class TranscriptMiddlewareTest {
         final String[] conversationId = { null };
 
         new TestFlow(adapter, (context) -> {
+            delay(500);
             // The next assert implicitly tests the immutability of the incoming
             // message. As demonstrated by the asserts after this TestFlow block
             // the role attribute is present on the activity as it is passed to
             // the transcript, but still missing inside the flow
-            Assert.assertNull(context.getActivity().getFrom().getRole());
+            Assert.assertNotNull(context.getActivity().getFrom().getRole());
             conversationId[0] = context.getActivity().getConversation().getId();
             context.sendActivity("echo:" + context.getActivity().getText()).join();
             return CompletableFuture.completedFuture(null);
@@ -299,5 +293,17 @@ public class TranscriptMiddlewareTest {
         Assert.assertEquals(RoleTypes.BOT, pagedResult.getItems().get(1).getFrom().getRole());
 
         System.out.printf("Complete");
+    }
+
+    /**
+     * Time period delay.
+     * @param milliseconds Time to delay.
+     */
+    private void delay(int milliseconds) {
+        try {
+            Thread.sleep(milliseconds);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 }

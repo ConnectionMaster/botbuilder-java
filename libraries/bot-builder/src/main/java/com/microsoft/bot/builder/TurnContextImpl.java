@@ -67,8 +67,6 @@ public class TurnContextImpl implements TurnContext, AutoCloseable {
      */
     private Boolean responded = false;
 
-    private static final String STATE_TURN_LOCALE = "turn.locale";
-
     /**
      * Creates a context object.
      *
@@ -314,11 +312,8 @@ public class TurnContextImpl implements TurnContext, AutoCloseable {
             return Async.completeExceptionally(new IllegalArgumentException("textReplyToSend"));
         }
 
-        Activity activityToSend = new Activity(ActivityTypes.MESSAGE) {
-            {
-                setText(textReplyToSend);
-            }
-        };
+        Activity activityToSend = new Activity(ActivityTypes.MESSAGE);
+        activityToSend.setText(textReplyToSend);
 
         if (StringUtils.isNotEmpty(speak)) {
             activityToSend.setSpeak(speak);

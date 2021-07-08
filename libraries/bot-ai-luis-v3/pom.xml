@@ -6,7 +6,7 @@
   <parent>
     <groupId>com.microsoft.bot</groupId>
     <artifactId>bot-java</artifactId>
-    <version>4.6.0-preview8</version>
+    <version>4.15.0-SNAPSHOT</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
@@ -48,6 +48,12 @@
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
@@ -60,39 +66,21 @@
     </dependency>
     <dependency>
       <groupId>com.microsoft.bot</groupId>
-      <artifactId>bot-applicationinsights</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.microsoft.bot</groupId>
       <artifactId>bot-dialogs</artifactId>
     </dependency>
     <dependency>
       <groupId>com.squareup.okhttp3</groupId>
       <artifactId>okhttp</artifactId>
-      <version>4.9.0</version>
+    </dependency>
+    <dependency>
+      <groupId>com.squareup.okhttp3</groupId>
+      <artifactId>mockwebserver</artifactId>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.json</groupId>
       <artifactId>json</artifactId>
       <version>20190722</version>
-    </dependency>
-    <dependency>
-      <groupId>com.squareup.okhttp3</groupId>
-      <artifactId>mockwebserver</artifactId>
-      <version>4.9.0</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-params</artifactId>
-      <version>5.7.0</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-junit-jupiter</artifactId>
-      <version>3.6.0</version>
-      <scope>test</scope>
     </dependency>
   </dependencies>
 
@@ -104,25 +92,6 @@
       </activation>
       <build>
         <plugins>
-          <plugin>
-            <groupId>org.eluder.coveralls</groupId>
-            <artifactId>coveralls-maven-plugin</artifactId>
-            <configuration>
-              <repoToken>yourcoverallsprojectrepositorytoken</repoToken>
-            </configuration>
-          </plugin>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>cobertura-maven-plugin</artifactId>
-            <configuration>
-              <outputDirectory>../../cobertura-report/bot-ai-luis-v3</outputDirectory>
-              <format>xml</format>
-              <maxmem>256m</maxmem>
-              <!-- aggregated reports for multi-module projects -->
-              <aggregate>true</aggregate>
-              <check/>
-            </configuration>
-          </plugin>
         </plugins>
       </build>
     </profile>

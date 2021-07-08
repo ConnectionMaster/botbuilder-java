@@ -65,7 +65,8 @@ public class ActivityPromptTests {
         dialogs.add(eventPrompt);
 
         // Create mock Activity for testing.
-        Activity eventActivity = new Activity() { { setType(ActivityTypes.EVENT); setValue(2); }};
+        Activity eventActivity = new Activity(ActivityTypes.EVENT);
+        eventActivity.setValue(2);
 
         BotCallbackHandler botLogic = (turnContext -> {
             DialogContext dc =  dialogs.createContext(turnContext).join();
@@ -279,7 +280,7 @@ public class ActivityPromptTests {
             Assert.assertTrue(promptContext.getAttemptCount() > 0);
 
             Activity activity = promptContext.getRecognized().getValue();
-            if (activity.getType() == ActivityTypes.EVENT) {
+            if (activity.getType().equals(ActivityTypes.EVENT)) {
                 if ((int) activity.getValue() == 2) {
                     promptContext.getRecognized().setValue(MessageFactory.text(activity.getValue().toString()));
                     return CompletableFuture.completedFuture(true);

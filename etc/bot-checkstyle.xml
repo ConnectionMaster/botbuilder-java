@@ -85,7 +85,14 @@
 
     <module name="SuppressWarningsFilter" />
 
+    <module name="LineLength">
+      <property name="max" value="120"/>
+    </module>
+
     <module name="TreeWalker">
+        <!-- check for usage of literal equality "==" between string -->
+        <module name="StringLiteralEquality"/>
+
         <module name="SuppressWarningsHolder" />
         <module name="SuppressionCommentFilter"/>
 
@@ -122,10 +129,7 @@
         </module>
 
         <!-- Checks for Size Violations.                    -->
-        <!-- See http://checkstyle.sourceforge.net/config_sizes.html -->
-        <module name="LineLength">
-          <property name="max" value="120"/>
-        </module>
+        <!-- See http://checkstyle.sourceforge.net/config_sizes.html -->        
         <module name="MethodLength"/>
         <module name="ParameterNumber"/>
 
@@ -184,6 +188,8 @@
         <module name="TodoComment"/>
         <module name="UpperEll"/>
 
+        <!-- check for usage of literal equality "==" between string -->
+        <module name="StringLiteralEquality"/>
     </module>
 
 </module>

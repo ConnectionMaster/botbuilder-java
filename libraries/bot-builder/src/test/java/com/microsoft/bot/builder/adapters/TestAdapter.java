@@ -9,7 +9,7 @@ import com.microsoft.bot.connector.Channels;
 import com.microsoft.bot.connector.authentication.AppCredentials;
 import com.microsoft.bot.schema.*;
 import org.apache.commons.lang3.StringUtils;
-
+import org.junit.rules.ExpectedException;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -23,7 +23,7 @@ public class TestAdapter extends BotAdapter implements UserTokenProvider {
     private final Queue<Activity> botReplies = new LinkedList<>();
     private int nextId = 0;
     private ConversationReference conversationReference;
-    private String locale;
+    private String locale = "en-us";
     private boolean sendTraceActivity = false;
     private Map<ExchangableTokenKey, String> exchangableToken = new HashMap<ExchangableTokenKey, String>();
 
@@ -93,65 +93,55 @@ public class TestAdapter extends BotAdapter implements UserTokenProvider {
 
     public TestAdapter(String channelId, boolean sendTraceActivity) {
         this.sendTraceActivity = sendTraceActivity;
-        setConversationReference(new ConversationReference() {
-            {
-                setChannelId(channelId);
-                setServiceUrl("https://test.com");
-                setUser(new ChannelAccount() {
-                    {
-                        setId("user1");
-                        setName("User1");
-                    }
-                });
-                setBot(new ChannelAccount() {
-                    {
-                        setId("bot");
-                        setName("Bot");
-                    }
-                });
-                setConversation(new ConversationAccount() {
-                    {
-                        setIsGroup(false);
-                        setConversationType("convo1");
-                        setId("Conversation1");
-                    }
-                });
-                setLocale(this.getLocale());
-            }
-        });
+
+        ConversationReference conversationReference = new ConversationReference();
+        conversationReference.setChannelId(channelId);
+        conversationReference.setServiceUrl("https://test.com");
+        ChannelAccount userAccount = new ChannelAccount();
+        userAccount.setId("user1");
+        userAccount.setName("User1");
+        conversationReference.setUser(userAccount);
+        ChannelAccount botAccount = new ChannelAccount();
+        botAccount.setId("bot");
+        botAccount.setName("Bot");
+        conversationReference.setBot(botAccount);
+        ConversationAccount conversation = new ConversationAccount();
+        conversation.setIsGroup(false);
+        conversation.setConversationType("convo1");
+        conversation.setId("Conversation1");
+        conversationReference.setConversation(conversation);
+        conversationReference.setLocale(this.getLocale());
+
+        setConversationReference(conversationReference);
     }
 
     public TestAdapter(ConversationReference reference) {
         if (reference != null) {
             setConversationReference(reference);
         } else {
-            setConversationReference(new ConversationReference() {
-                {
-                    setChannelId(Channels.TEST);
-                    setServiceUrl("https://test.com");
-                    setUser(new ChannelAccount() {
-                        {
-                            setId("user1");
-                            setName("User1");
-                        }
-                    });
-                    setBot(new ChannelAccount() {
-                        {
-                            setId("bot");
-                            setName("Bot");
-                        }
-                    });
-                    setConversation(new ConversationAccount() {
-                        {
-                            setIsGroup(false);
-                            setConversationType("convo1");
-                            setId("Conversation1");
-                        }
-                    });
-                    setLocale(this.getLocale());
-                }
-            });
+            ConversationReference conversationReference = new ConversationReference();
+            conversationReference.setChannelId(Channels.TEST);
+            conversationReference.setServiceUrl("https://test.com");
+            ChannelAccount userAccount = new ChannelAccount();
+            userAccount.setId("user1");
+            userAccount.setName("User1");
+            conversationReference.setUser(userAccount);
+            ChannelAccount botAccount = new ChannelAccount();
+            botAccount.setId("bot");
+            botAccount.setName("Bot");
+            conversationReference.setBot(botAccount);
+            ConversationAccount conversation = new ConversationAccount();
+            conversation.setIsGroup(false);
+            conversation.setConversationType("convo1");
+            conversation.setId("Conversation1");
+            conversationReference.setConversation(conversation);
+            conversationReference.setLocale(this.getLocale());
+            setConversationReference(conversationReference);
         }
+    }
+    public TestAdapter(ConversationReference reference, boolean sendTraceActivity) {
+        this(reference);
+        this.sendTraceActivity = sendTraceActivity;
     }
 
     public Queue<Activity> activeQueue() {
@@ -255,7 +245,7 @@ public class TestAdapter extends BotAdapter implements UserTokenProvider {
             System.out.println(String.format("TestAdapter:SendActivities, Count:%s (tid:%s)", activities.size(),
                     Thread.currentThread().getId()));
             for (Activity act : activities) {
-                System.out.printf(" :--------\n : To:%s\n", act.getRecipient().getName());
+                System.out.printf(" :--------\n : To:%s\n", (act.getRecipient() == null) ? "No recipient set" : act.getRecipient().getName());
                 System.out.printf(" : From:%s\n", (act.getFrom() == null) ? "No from set" : act.getFrom().getName());
                 System.out.printf(" : Text:%s\n :---------\n", (act.getText() == null) ? "No text set" : act.getText());
             }
@@ -271,7 +261,7 @@ public class TestAdapter extends BotAdapter implements UserTokenProvider {
                     Thread.sleep(delayMs);
                 } catch (InterruptedException e) {
                 }
-            } else if (activity.getType() == ActivityTypes.TRACE) {
+            } else if (activity.getType().equals(ActivityTypes.TRACE)) {
                 if (sendTraceActivity) {
                     synchronized (botReplies) {
                         botReplies.add(activity);
@@ -349,16 +339,16 @@ public class TestAdapter extends BotAdapter implements UserTokenProvider {
 
     public Activity makeActivity(String withText) {
         Integer next = nextId++;
-        Activity activity = new Activity(ActivityTypes.MESSAGE) {
-            {
-                setFrom(conversationReference().getUser());
-                setRecipient(conversationReference().getBot());
-                setConversation(conversationReference().getConversation());
-                setServiceUrl(conversationReference().getServiceUrl());
-                setId(next.toString());
-                setText(withText);
-            }
-        };
+        String locale = !getLocale().isEmpty() ? getLocale() : "en-us";
+        Activity activity = new Activity(ActivityTypes.MESSAGE);
+        activity.setLocale(locale);
+        activity.setFrom(conversationReference().getUser());
+        activity.setRecipient(conversationReference().getBot());
+        activity.setConversation(conversationReference().getConversation());
+        activity.setServiceUrl(conversationReference().getServiceUrl());
+        activity.setId(next.toString());
+        activity.setText(withText);
+        activity.setLocale(getLocale() != null ? getLocale() : "en-us");
 
         return activity;
     }
@@ -383,13 +373,11 @@ public class TestAdapter extends BotAdapter implements UserTokenProvider {
         if (withMagicCode == null) {
             userTokens.put(userKey, token);
         } else {
-            magicCodes.add(new TokenMagicCode() {
-                {
-                    key = userKey;
-                    magicCode = withMagicCode;
-                    userToken = token;
-                }
-            });
+            TokenMagicCode tokenMagicCode = new TokenMagicCode();
+            tokenMagicCode.key = userKey;
+            tokenMagicCode.magicCode = withMagicCode;
+            tokenMagicCode.userToken = token;
+            magicCodes.add(tokenMagicCode);
         }
     }
 
@@ -417,8 +405,8 @@ public class TestAdapter extends BotAdapter implements UserTokenProvider {
         reference.setChannelId("test");
         reference.setServiceUrl("https://test.com");
         reference.setConversation(new ConversationAccount(false, name, name, null, null, null, null));
-        reference.setUser(new ChannelAccount(user.toLowerCase(), user.toLowerCase()));
-        reference.setBot(new ChannelAccount(bot.toLowerCase(), bot.toLowerCase()));
+        reference.setUser(new ChannelAccount(user.toLowerCase(), user));
+        reference.setBot(new ChannelAccount(bot.toLowerCase(), bot));
         reference.setLocale("en-us");
         return reference;
     }
@@ -483,12 +471,10 @@ public class TestAdapter extends BotAdapter implements UserTokenProvider {
                 }
 
                 if (userTokens.containsKey(key)) {
-                    return CompletableFuture.completedFuture(new TokenResponse() {
-                        {
-                            setConnectionName(connectionName);
-                            setToken(userTokens.get(key));
-                        }
-                    });
+                    TokenResponse tokenResponse = new TokenResponse();
+                    tokenResponse.setConnectionName(connectionName);
+                    tokenResponse.setToken(userTokens.get(key));
+                    return CompletableFuture.completedFuture(tokenResponse);
                 }
 
                 return CompletableFuture.completedFuture(null);
@@ -506,8 +492,8 @@ public class TestAdapter extends BotAdapter implements UserTokenProvider {
                                         String channelId,
                                         String userId,
                                         String exchangableItem,
-                                        String token)
-    {
+                                        String token
+    ) {
         ExchangableTokenKey key = new ExchangableTokenKey();
         key.setConnectionName(connectionName);
         key.setChannelId(channelId);
@@ -518,6 +504,23 @@ public class TestAdapter extends BotAdapter implements UserTokenProvider {
             exchangableToken.replace(key, token);
         } else {
             exchangableToken.put(key, token);
+        }
+    }
+
+    public void throwOnExchangeRequest(String connectionName,
+    String channelId,
+    String userId,
+    String exchangableItem) {
+        ExchangableTokenKey key = new ExchangableTokenKey();
+        key.setConnectionName(connectionName);
+        key.setChannelId(channelId);
+        key.setUserId(userId);
+        key.setExchangableItem(exchangableItem);
+
+        if (exchangableToken.containsKey(key)) {
+            exchangableToken.replace(key, exceptionExpected);
+        } else {
+            exchangableToken.put(key, exceptionExpected);
         }
     }
 
@@ -546,12 +549,12 @@ public class TestAdapter extends BotAdapter implements UserTokenProvider {
                 .filter(x -> StringUtils.equals(x.channelId, turnContext.getActivity().getChannelId())
                         && StringUtils.equals(x.userId, turnContext.getActivity().getFrom().getId())
                         && (includeFilter == null || Arrays.binarySearch(filter, x.connectionName) != -1))
-                .map(r -> new TokenStatus() {
-                    {
-                        setConnectionName(r.connectionName);
-                        setHasToken(true);
-                        setServiceProviderDisplayName(r.connectionName);
-                    }
+                .map(r -> {
+                    TokenStatus tokenStatus = new TokenStatus();
+                    tokenStatus.setConnectionName(r.connectionName);
+                    tokenStatus.setHasToken(true);
+                    tokenStatus.setServiceProviderDisplayName(r.connectionName);
+                    return tokenStatus;
                 }).collect(Collectors.toList());
 
         if (records.size() > 0) {
@@ -641,13 +644,11 @@ public class TestAdapter extends BotAdapter implements UserTokenProvider {
                         new RuntimeException("Exception occurred during exchanging tokens")
                     );
                 }
-                return CompletableFuture.completedFuture(new TokenResponse() {
-                    {
-                        setChannelId(key.getChannelId());
-                        setConnectionName(key.getConnectionName());
-                        setToken(token);
-                    }
-                });
+                TokenResponse tokenResponse = new TokenResponse();
+                tokenResponse.setChannelId(key.getChannelId());
+                tokenResponse.setConnectionName(key.getConnectionName());
+                tokenResponse.setToken(token);
+                return CompletableFuture.completedFuture(tokenResponse);
             } else {
                 return CompletableFuture.completedFuture(null);
             }

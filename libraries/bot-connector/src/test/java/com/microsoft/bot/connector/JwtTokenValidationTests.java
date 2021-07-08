@@ -5,6 +5,11 @@ package com.microsoft.bot.connector;
 
 import com.microsoft.bot.connector.authentication.*;
 import com.microsoft.bot.schema.Activity;
+import com.microsoft.bot.schema.ActivityTypes;
+import com.microsoft.bot.schema.ChannelAccount;
+import com.microsoft.bot.schema.ConversationReference;
+import com.microsoft.bot.schema.RoleTypes;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -151,24 +156,6 @@ public class JwtTokenValidationTests {
     }
 
     /**
-     * Tests with a valid Token and service url; and ensures that Service url is added to Trusted service url list.
-     */
-    @Test
-    public void ChannelMsaHeaderValidServiceUrlShouldBeTrusted() throws IOException, ExecutionException, InterruptedException {
-        String header = getHeaderToken();
-        CredentialProvider credentials = new SimpleCredentialProvider(APPID, "");
-        JwtTokenValidation.authenticateRequest(
-            new Activity() {{
-                setServiceUrl("https://smba.trafficmanager.net/amer-client-ss.msg/");
-            }},
-            header,
-            credentials,
-            new SimpleChannelProvider()).join();
-
-        Assert.assertTrue(MicrosoftAppCredentials.isTrustedServiceUrl("https://smba.trafficmanager.net/amer-client-ss.msg/"));
-    }
-
-    /**
      * Tests with a valid Token and invalid service url; and ensures that Service url is NOT added to Trusted service url list.
      */
     @Test
@@ -177,17 +164,16 @@ public class JwtTokenValidationTests {
         CredentialProvider credentials = new SimpleCredentialProvider("7f74513e-6f96-4dbc-be9d-9a81fea22b88", "");
 
         try {
+            Activity activity = new Activity(ActivityTypes.MESSAGE);
+            activity.setServiceUrl("https://webchat.botframework.com/");
             JwtTokenValidation.authenticateRequest(
-                new Activity() {{
-                    setServiceUrl("https://webchat.botframework.com/");
-                }},
+                activity,
                 header,
                 credentials,
                 new SimpleChannelProvider()).join();
             Assert.fail("Should have thrown AuthenticationException");
         } catch (CompletionException e) {
             Assert.assertTrue(e.getCause() instanceof AuthenticationException);
-            Assert.assertFalse(MicrosoftAppCredentials.isTrustedServiceUrl("https://webchat.botframework.com/"));
         }
     }
 
@@ -199,25 +185,50 @@ public class JwtTokenValidationTests {
         String header = "";
         CredentialProvider credentials = new SimpleCredentialProvider("", "");
 
+        Activity activity = new Activity(ActivityTypes.MESSAGE);
+        activity.setServiceUrl("https://webchat.botframework.com/");
         ClaimsIdentity identity = JwtTokenValidation.authenticateRequest(
-            new Activity() {{
-                setServiceUrl("https://webchat.botframework.com/");
-            }},
+            activity,
             header,
             credentials,
             new SimpleChannelProvider()).join();
         Assert.assertEquals("anonymous", identity.getIssuer());
     }
 
+    /**
+     * Tests with no authentication header and makes sure the service URL is not added to the trusted list.
+     */
+    @Test
+    public void ChannelAuthenticationDisabledAndSkillShouldBeAnonymous() throws ExecutionException, InterruptedException {
+        String header = "";
+        CredentialProvider credentials = new SimpleCredentialProvider("", "");
+
+        Activity activity = new Activity(ActivityTypes.MESSAGE);
+        activity.setServiceUrl("https://webchat.botframework.com/");
+        activity.setChannelId(Channels.EMULATOR);
+        activity.setRelatesTo(new ConversationReference());
+        ChannelAccount skillAccount = new ChannelAccount();
+        skillAccount.setRole(RoleTypes.SKILL);
+        activity.setRecipient(skillAccount);
+        ClaimsIdentity identity = JwtTokenValidation.authenticateRequest(
+            activity,
+            header,
+            credentials,
+            new SimpleChannelProvider()).join();
+        Assert.assertEquals(AuthenticationConstants.ANONYMOUS_AUTH_TYPE, identity.getType());
+        Assert.assertEquals(AuthenticationConstants.ANONYMOUS_SKILL_APPID, JwtTokenValidation.getAppIdFromClaims(identity.claims()));
+    }
+
+
     @Test
     public void ChannelNoHeaderAuthenticationEnabledShouldThrow() throws IOException, ExecutionException, InterruptedException {
         try {
             String header = "";
             CredentialProvider credentials = new SimpleCredentialProvider(APPID, APPPASSWORD);
+            Activity activity = new Activity(ActivityTypes.MESSAGE);
+            activity.setServiceUrl("https://smba.trafficmanager.net/amer-client-ss.msg/");
             JwtTokenValidation.authenticateRequest(
-                new Activity() {{
-                    setServiceUrl("https://smba.trafficmanager.net/amer-client-ss.msg/");
-                }},
+                activity,
                 header,
                 credentials,
                 new SimpleChannelProvider()).join();
@@ -225,26 +236,6 @@ public class JwtTokenValidationTests {
         } catch (CompletionException e) {
             Assert.assertTrue(e.getCause() instanceof AuthenticationException);
         }
-
-        Assert.assertFalse(MicrosoftAppCredentials.isTrustedServiceUrl("https://smba.trafficmanager.net/amer-client-ss.msg/"));
-    }
-
-    /**
-     * Tests with no authentication header and makes sure the service URL is not added to the trusted list.
-     */
-    @Test
-    public void ChannelAuthenticationDisabledServiceUrlShouldNotBeTrusted() throws ExecutionException, InterruptedException {
-        String header = "";
-        CredentialProvider credentials = new SimpleCredentialProvider("", "");
-
-        ClaimsIdentity identity = JwtTokenValidation.authenticateRequest(
-            new Activity() {{
-                setServiceUrl("https://webchat.botframework.com/");
-            }},
-            header,
-            credentials,
-            new SimpleChannelProvider()).join();
-        Assert.assertFalse(MicrosoftAppCredentials.isTrustedServiceUrl("https://webchat.botframework.com/"));
     }
 
     @Test
@@ -253,10 +244,9 @@ public class JwtTokenValidationTests {
         String serviceUrl = "https://webchat.botframework.com/";
         CredentialProvider credentials = new SimpleCredentialProvider(appId, null);
 
-        Map<String, String> claims = new HashMap<String, String>() {{
-            put(AuthenticationConstants.AUDIENCE_CLAIM, appId);
-            put(AuthenticationConstants.SERVICE_URL_CLAIM, serviceUrl);
-        }};
+        Map<String, String> claims = new HashMap<String, String>();
+        claims.put(AuthenticationConstants.AUDIENCE_CLAIM, appId);
+        claims.put(AuthenticationConstants.SERVICE_URL_CLAIM, serviceUrl);
         ClaimsIdentity identity = new ClaimsIdentity(AuthenticationConstants.TO_BOT_FROM_CHANNEL_TOKEN_ISSUER, claims);
 
         try {
@@ -272,10 +262,9 @@ public class JwtTokenValidationTests {
         String serviceUrl = "https://webchat.botframework.com/";
         CredentialProvider credentials = new SimpleCredentialProvider(appId, null);
 
-        Map<String, String> claims = new HashMap<String, String>() {{
-            put(AuthenticationConstants.AUDIENCE_CLAIM, appId);
-            put(AuthenticationConstants.SERVICE_URL_CLAIM, serviceUrl);
-        }};
+        Map<String, String> claims = new HashMap<String, String>();
+        claims.put(AuthenticationConstants.AUDIENCE_CLAIM, appId);
+        claims.put(AuthenticationConstants.SERVICE_URL_CLAIM, serviceUrl);
         ClaimsIdentity identity = new ClaimsIdentity(null, claims);
 
         try {
@@ -292,9 +281,8 @@ public class JwtTokenValidationTests {
         String serviceUrl = "https://webchat.botframework.com/";
         CredentialProvider credentials = new SimpleCredentialProvider(appId, null);
 
-        Map<String, String> claims = new HashMap<String, String>() {{
-            put(AuthenticationConstants.SERVICE_URL_CLAIM, serviceUrl);
-        }};
+        Map<String, String> claims = new HashMap<String, String>();
+        claims.put(AuthenticationConstants.SERVICE_URL_CLAIM, serviceUrl);
         ClaimsIdentity identity = new ClaimsIdentity(AuthenticationConstants.TO_BOT_FROM_CHANNEL_TOKEN_ISSUER, claims);
 
         try {
@@ -311,10 +299,9 @@ public class JwtTokenValidationTests {
         String serviceUrl = "https://webchat.botframework.com/";
         CredentialProvider credentials = new SimpleCredentialProvider(appId, null);
 
-        Map<String, String> claims = new HashMap<String, String>() {{
-            put(AuthenticationConstants.AUDIENCE_CLAIM, "");
-            put(AuthenticationConstants.SERVICE_URL_CLAIM, serviceUrl);
-        }};
+        Map<String, String> claims = new HashMap<String, String>();
+        claims.put(AuthenticationConstants.AUDIENCE_CLAIM, "");
+        claims.put(AuthenticationConstants.SERVICE_URL_CLAIM, serviceUrl);
         ClaimsIdentity identity = new ClaimsIdentity(AuthenticationConstants.TO_BOT_FROM_CHANNEL_TOKEN_ISSUER, claims);
 
         try {
@@ -331,10 +318,9 @@ public class JwtTokenValidationTests {
         String serviceUrl = "https://webchat.botframework.com/";
         CredentialProvider credentials = new SimpleCredentialProvider(appId, null);
 
-        Map<String, String> claims = new HashMap<String, String>() {{
-            put(AuthenticationConstants.AUDIENCE_CLAIM, "abc");
-            put(AuthenticationConstants.SERVICE_URL_CLAIM, serviceUrl);
-        }};
+        Map<String, String> claims = new HashMap<String, String>();
+        claims.put(AuthenticationConstants.AUDIENCE_CLAIM, "abc");
+        claims.put(AuthenticationConstants.SERVICE_URL_CLAIM, serviceUrl);
         ClaimsIdentity identity = new ClaimsIdentity(AuthenticationConstants.TO_BOT_FROM_CHANNEL_TOKEN_ISSUER, claims);
 
         try {
@@ -351,9 +337,8 @@ public class JwtTokenValidationTests {
         String serviceUrl = "https://webchat.botframework.com/";
         CredentialProvider credentials = new SimpleCredentialProvider(appId, null);
 
-        Map<String, String> claims = new HashMap<String, String>() {{
-            put(AuthenticationConstants.AUDIENCE_CLAIM, appId);
-        }};
+        Map<String, String> claims = new HashMap<String, String>();
+        claims.put(AuthenticationConstants.AUDIENCE_CLAIM, appId);
         ClaimsIdentity identity = new ClaimsIdentity(AuthenticationConstants.TO_BOT_FROM_CHANNEL_TOKEN_ISSUER, claims);
 
         try {
@@ -370,10 +355,9 @@ public class JwtTokenValidationTests {
         String serviceUrl = "https://webchat.botframework.com/";
         CredentialProvider credentials = new SimpleCredentialProvider(appId, null);
 
-        Map<String, String> claims = new HashMap<String, String>() {{
-            put(AuthenticationConstants.AUDIENCE_CLAIM, appId);
-            put(AuthenticationConstants.SERVICE_URL_CLAIM, "");
-        }};
+        Map<String, String> claims = new HashMap<String, String>();
+        claims.put(AuthenticationConstants.AUDIENCE_CLAIM, appId);
+        claims.put(AuthenticationConstants.SERVICE_URL_CLAIM, "");
         ClaimsIdentity identity = new ClaimsIdentity(AuthenticationConstants.TO_BOT_FROM_CHANNEL_TOKEN_ISSUER, claims);
 
         try {
@@ -390,10 +374,9 @@ public class JwtTokenValidationTests {
         String serviceUrl = "https://webchat.botframework.com/";
         CredentialProvider credentials = new SimpleCredentialProvider(appId, null);
 
-        Map<String, String> claims = new HashMap<String, String>() {{
-            put(AuthenticationConstants.AUDIENCE_CLAIM, appId);
-            put(AuthenticationConstants.SERVICE_URL_CLAIM, "other");
-        }};
+        Map<String, String> claims = new HashMap<String, String>();
+        claims.put(AuthenticationConstants.AUDIENCE_CLAIM, appId);
+        claims.put(AuthenticationConstants.SERVICE_URL_CLAIM, "other");
         ClaimsIdentity identity = new ClaimsIdentity(AuthenticationConstants.TO_BOT_FROM_CHANNEL_TOKEN_ISSUER, claims);
 
         try {
@@ -410,10 +393,9 @@ public class JwtTokenValidationTests {
         String serviceUrl = "https://webchat.botframework.com/";
         CredentialProvider credentials = new SimpleCredentialProvider(appId, "");
 
-        Map<String, String> claims = new HashMap<String, String>() {{
-            put(AuthenticationConstants.AUDIENCE_CLAIM, appId);
-            put(AuthenticationConstants.SERVICE_URL_CLAIM, serviceUrl);
-        }};
+        Map<String, String> claims = new HashMap<String, String>();
+        claims.put(AuthenticationConstants.AUDIENCE_CLAIM, appId);
+        claims.put(AuthenticationConstants.SERVICE_URL_CLAIM, serviceUrl);
         ClaimsIdentity identity = new ClaimsIdentity(GovernmentAuthenticationConstants.TO_BOT_FROM_CHANNEL_TOKEN_ISSUER, claims);
 
         try {
@@ -429,10 +411,9 @@ public class JwtTokenValidationTests {
         String serviceUrl = "https://webchat.botframework.com/";
         CredentialProvider credentials = new SimpleCredentialProvider(appId, "");
 
-        Map<String, String> claims = new HashMap<String, String>() {{
-            put(AuthenticationConstants.AUDIENCE_CLAIM, appId);
-            put(AuthenticationConstants.SERVICE_URL_CLAIM, serviceUrl);
-        }};
+        Map<String, String> claims = new HashMap<String, String>();
+        claims.put(AuthenticationConstants.AUDIENCE_CLAIM, appId);
+        claims.put(AuthenticationConstants.SERVICE_URL_CLAIM, serviceUrl);
         ClaimsIdentity identity = new ClaimsIdentity(null, claims);
 
         try {
@@ -449,9 +430,8 @@ public class JwtTokenValidationTests {
         String serviceUrl = "https://webchat.botframework.com/";
         CredentialProvider credentials = new SimpleCredentialProvider(appId, "");
 
-        Map<String, String> claims = new HashMap<String, String>() {{
-            put(AuthenticationConstants.SERVICE_URL_CLAIM, serviceUrl);
-        }};
+        Map<String, String> claims = new HashMap<String, String>();
+        claims.put(AuthenticationConstants.SERVICE_URL_CLAIM, serviceUrl);
         ClaimsIdentity identity = new ClaimsIdentity(GovernmentAuthenticationConstants.TO_BOT_FROM_CHANNEL_TOKEN_ISSUER, claims);
 
         try {
@@ -468,10 +448,9 @@ public class JwtTokenValidationTests {
         String serviceUrl = "https://webchat.botframework.com/";
         CredentialProvider credentials = new SimpleCredentialProvider(appId, "");
 
-        Map<String, String> claims = new HashMap<String, String>() {{
-            put(AuthenticationConstants.AUDIENCE_CLAIM, "");
-            put(AuthenticationConstants.SERVICE_URL_CLAIM, serviceUrl);
-        }};
+        Map<String, String> claims = new HashMap<String, String>();
+        claims.put(AuthenticationConstants.AUDIENCE_CLAIM, "");
+        claims.put(AuthenticationConstants.SERVICE_URL_CLAIM, serviceUrl);
         ClaimsIdentity identity = new ClaimsIdentity(GovernmentAuthenticationConstants.TO_BOT_FROM_CHANNEL_TOKEN_ISSUER, claims);
 
         try {
@@ -488,10 +467,9 @@ public class JwtTokenValidationTests {
         String serviceUrl = "https://webchat.botframework.com/";
         CredentialProvider credentials = new SimpleCredentialProvider(appId, "");
 
-        Map<String, String> claims = new HashMap<String, String>() {{
-            put(AuthenticationConstants.AUDIENCE_CLAIM, "abc");
-            put(AuthenticationConstants.SERVICE_URL_CLAIM, serviceUrl);
-        }};
+        Map<String, String> claims = new HashMap<String, String>();
+        claims.put(AuthenticationConstants.AUDIENCE_CLAIM, "abc");
+        claims.put(AuthenticationConstants.SERVICE_URL_CLAIM, serviceUrl);
         ClaimsIdentity identity = new ClaimsIdentity(GovernmentAuthenticationConstants.TO_BOT_FROM_CHANNEL_TOKEN_ISSUER, claims);
 
         try {
@@ -508,10 +486,9 @@ public class JwtTokenValidationTests {
         String serviceUrl = "https://webchat.botframework.com/";
         CredentialProvider credentials = new SimpleCredentialProvider(appId, "");
 
-        Map<String, String> claims = new HashMap<String, String>() {{
-            put(AuthenticationConstants.AUDIENCE_CLAIM, appId);
-            put(AuthenticationConstants.SERVICE_URL_CLAIM, serviceUrl);
-        }};
+        Map<String, String> claims = new HashMap<String, String>();
+        claims.put(AuthenticationConstants.AUDIENCE_CLAIM, appId);
+        claims.put(AuthenticationConstants.SERVICE_URL_CLAIM, serviceUrl);
         ClaimsIdentity identity = new ClaimsIdentity("https://wrongissuer.com", claims);
 
         try {
@@ -528,9 +505,8 @@ public class JwtTokenValidationTests {
         String serviceUrl = "https://webchat.botframework.com/";
         CredentialProvider credentials = new SimpleCredentialProvider(appId, "");
 
-        Map<String, String> claims = new HashMap<String, String>() {{
-            put(AuthenticationConstants.AUDIENCE_CLAIM, appId);
-        }};
+        Map<String, String> claims = new HashMap<String, String>();
+        claims.put(AuthenticationConstants.AUDIENCE_CLAIM, appId);
         ClaimsIdentity identity = new ClaimsIdentity(GovernmentAuthenticationConstants.TO_BOT_FROM_CHANNEL_TOKEN_ISSUER, claims);
 
         try {
@@ -547,10 +523,9 @@ public class JwtTokenValidationTests {
         String serviceUrl = "https://webchat.botframework.com/";
         CredentialProvider credentials = new SimpleCredentialProvider(appId, "");
 
-        Map<String, String> claims = new HashMap<String, String>() {{
-            put(AuthenticationConstants.AUDIENCE_CLAIM, appId);
-            put(AuthenticationConstants.SERVICE_URL_CLAIM, "");
-        }};
+        Map<String, String> claims = new HashMap<String, String>();
+        claims.put(AuthenticationConstants.AUDIENCE_CLAIM, appId);
+        claims.put(AuthenticationConstants.SERVICE_URL_CLAIM, "");
         ClaimsIdentity identity = new ClaimsIdentity(GovernmentAuthenticationConstants.TO_BOT_FROM_CHANNEL_TOKEN_ISSUER, claims);
 
         try {
@@ -567,10 +542,9 @@ public class JwtTokenValidationTests {
         String serviceUrl = "https://webchat.botframework.com/";
         CredentialProvider credentials = new SimpleCredentialProvider(appId, "");
 
-        Map<String, String> claims = new HashMap<String, String>() {{
-            put(AuthenticationConstants.AUDIENCE_CLAIM, appId);
-            put(AuthenticationConstants.SERVICE_URL_CLAIM, "other");
-        }};
+        Map<String, String> claims = new HashMap<String, String>();
+        claims.put(AuthenticationConstants.AUDIENCE_CLAIM, appId);
+        claims.put(AuthenticationConstants.SERVICE_URL_CLAIM, "other");
         ClaimsIdentity identity = new ClaimsIdentity(GovernmentAuthenticationConstants.TO_BOT_FROM_CHANNEL_TOKEN_ISSUER, claims);
 
         try {

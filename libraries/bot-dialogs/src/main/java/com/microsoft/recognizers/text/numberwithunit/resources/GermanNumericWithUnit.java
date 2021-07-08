@@ -161,7 +161,7 @@ public class GermanNumericWithUnit {
         .put("United Arab Emirates dirham", "vae dirham|vae-dirham|dirham der vereinigten arabischen emirate|د.إ|aed")
         .put("Azerbaijani manat", "aserbaidschan-manat|azn")
         .put("Turkmenistan manat", "turkmenistan-manat|tmt")
-        .put("Manat", "manat")
+        .put("Manat", "manat|manats")
         .put("Qəpik", "qəpik")
         .put("Somali shilling", "somalia-schilling|sh.so.|sos")
         .put("Somaliland shilling", "somaliland-schilling")
@@ -179,7 +179,7 @@ public class GermanNumericWithUnit {
         .put("Maldivian rufiyaa", "maledivischer rufiyaa|maledivische rufiyaa|maledivischen rufiyaa|mvr|.ރ")
         .put("Sri Lankan rupee", "sri-lanka-rupie|sri-lanka-rupien|lkr|රු|ரூ")
         .put("Indonesian rupiah", "indonesischer rupiah|indonesische rupiah|indonesischen rupiah|rupiah|perak|rp|idr")
-        .put("Rupee", "rupie|rs")
+        .put("Rupee", "rupie|rupien|rs")
         .put("Danish krone", "dänische krone|dänischen krone|dänischer kronen|dänische kronen|dänischen kronen|daenische krone|daenischen krone|daenischer kronen|daenische kronen|daenischen kronen|dkk")
         .put("Norwegian krone", "norwegische krone|norwegischen krone|norwegischer kronen|norwegische kronen|norwegischen kronen|nok")
         .put("Faroese króna", "färöische króna|färöische krone|färöischen krone|färöischer kronen|färöische kronen|färöischen kronen")
@@ -232,7 +232,7 @@ public class GermanNumericWithUnit {
         .put("Mexican peso", "mexikanischer peso|mexikanische peso|mexikanischen peso|mxn")
         .put("Philippine peso", "piso|philippinischer peso|philippinische peso|philippinischen peso|₱|php")
         .put("Uruguayan peso", "uruguayischer peso|uruguayische peso|uruguayischen peso|uyu")
-        .put("Peso", "peso")
+        .put("Peso", "peso|pesos")
         .put("Centavo", "centavos|centavo")
         .put("Alderney pound", "alderney pfund|alderney £")
         .put("British pound", "britischer pfund|britische pfund|britischen pfund|british £|gbp|pfund sterling")
@@ -292,6 +292,8 @@ public class GermanNumericWithUnit {
         .put("Jiao", "jiao")
         .put("Finnish markka", "suomen markka|finnish markka|finsk mark|fim|markkaa|markka|finnische mark|finnischen mark")
         .put("Penni", "penniä|penni")
+        .put("Bitcoin", "bitcoin|bitcoins|btc|xbt|₿")
+        .put("Millibitcoin", "millibitcoin|millibitcoins|milibitcoin|milibitcoins")
         .build();
 
     public static final String CompoundUnitConnectorRegex = "(?<spacer>[^.])";
@@ -337,6 +339,7 @@ public class GermanNumericWithUnit {
         .put("Pound", "£")
         .put("Costa Rican colón", "₡")
         .put("Turkish lira", "₺")
+        .put("Bitcoin", "₿|btc|xbt")
         .build();
 
     public static final List<String> AmbiguousCurrencyUnitList = Arrays.asList("din.", "kiwi", "kina", "kobo", "lari", "lipa", "napa", "para", "sfr.", "taka", "tala", "toea", "vatu", "yuan", "ang", "ban", "bob", "btn", "byr", "cad", "cop", "cup", "dop", "gip", "jod", "kgs", "lak", "lei", "mga", "mop", "nad", "omr", "pul", "sar", "sbd", "scr", "sdg", "sek", "sen", "sol", "sos", "std", "try", "yer", "yen");
@@ -361,6 +364,8 @@ public class GermanNumericWithUnit {
     public static final String BuildPrefix = "(?<=(\\s|^))";
 
     public static final String BuildSuffix = "(?=(\\s|\\W|$))";
+
+    public static final String ConnectorToken = "-";
 
     public static final ImmutableMap<String, String> LengthSuffixList = ImmutableMap.<String, String>builder()
         .put("Kilometer", "km|kilometer|kilometern")

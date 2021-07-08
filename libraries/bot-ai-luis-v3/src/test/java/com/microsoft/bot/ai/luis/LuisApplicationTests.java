@@ -3,9 +3,8 @@
 
 package com.microsoft.bot.ai.luis;
 
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class LuisApplicationTests {
     String validUUID = "b31aeaf3-3511-495b-a07f-571fc873214b";
@@ -16,7 +15,7 @@ public class LuisApplicationTests {
     @Test
     public void invalidSubscriptionKey() {
 
-        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+        Exception exception = Assert.assertThrows(IllegalArgumentException.class, () -> {
             LuisApplication lA = new LuisApplication(
                 validUUID,
                 invalidUUID,
@@ -26,13 +25,13 @@ public class LuisApplicationTests {
         String expectedMessage = String.format("%s is not a valid LUIS subscription key.", invalidUUID);
         String actualMessage = exception.getMessage();
 
-        assertTrue(actualMessage.contains(expectedMessage));
+        Assert.assertTrue(actualMessage.contains(expectedMessage));
     }
 
     @Test
     public void invalidApplicationId () {
 
-        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+        Exception exception = Assert.assertThrows(IllegalArgumentException.class, () -> {
             LuisApplication lA = new LuisApplication(
                 invalidUUID,
                 validUUID,
@@ -42,13 +41,13 @@ public class LuisApplicationTests {
         String expectedMessage = String.format("%s is not a valid LUIS application id.", invalidUUID);
         String actualMessage = exception.getMessage();
 
-        assertTrue(actualMessage.contains(expectedMessage));
+        Assert.assertTrue(actualMessage.contains(expectedMessage));
     }
 
     @Test
     public void invalidEndpoint() {
 
-        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+        Exception exception = Assert.assertThrows(IllegalArgumentException.class, () -> {
             LuisApplication lA = new LuisApplication(
                 validUUID,
                 validUUID,
@@ -58,11 +57,11 @@ public class LuisApplicationTests {
         String expectedMessage = String.format("%s is not a valid LUIS endpoint.", invalidEndpoint);
         String actualMessage = exception.getMessage();
 
-        assertTrue(actualMessage.contains(expectedMessage));
+        Assert.assertTrue(actualMessage.contains(expectedMessage));
     }
 
     @Test
-    public void CreatesNewLuisApplication() {
+    public void createsNewLuisApplication() {
 
         LuisApplication lA = new LuisApplication(
             validUUID,
@@ -70,20 +69,31 @@ public class LuisApplicationTests {
             validEndpoint
         );
 
-        assertTrue(lA.getApplicationId().equals(validUUID));
-        assertTrue(lA.getEndpointKey().equals(validUUID));
-        assertTrue(lA.getEndpoint().equals(validEndpoint));
+        Assert.assertTrue(lA.getApplicationId().equals(validUUID));
+        Assert.assertTrue(lA.getEndpointKey().equals(validUUID));
+        Assert.assertTrue(lA.getEndpoint().equals(validEndpoint));
     }
 
     @Test
-    public void CreatesNewLuisApplicationFromURL() {
+    public void createsNewLuisApplicationFromURL() {
         String url = "https://westus.api.cognitive.microsoft.com/luis/prediction/v3.0/apps/b31aeaf3-3511-495b-a07f-571fc873214b/slots/production/predict?verbose=true&timezoneOffset=-360&subscription-key=048ec46dc58e495482b0c447cfdbd291";
         LuisApplication lA = new LuisApplication(url);
 
-        assertTrue(lA.getApplicationId().equals("b31aeaf3-3511-495b-a07f-571fc873214b"));
-        assertTrue(lA.getEndpointKey().equals("048ec46dc58e495482b0c447cfdbd291"));
-        assertTrue(lA.getEndpoint().equals("https://westus.api.cognitive.microsoft.com"));
+        Assert.assertTrue(lA.getApplicationId().equals("b31aeaf3-3511-495b-a07f-571fc873214b"));
+        Assert.assertTrue(lA.getEndpointKey().equals("048ec46dc58e495482b0c447cfdbd291"));
+        Assert.assertTrue(lA.getEndpoint().equals("https://westus.api.cognitive.microsoft.com"));
     }
 
-
+    @Test
+    public void listApplicationFromLuisEndpointBadArguments() {
+        Assert.assertThrows(IllegalArgumentException.class, () -> {
+            LuisApplication lA = new LuisApplication("this.is.not.a.uri");
+        });
+        Assert.assertThrows(IllegalArgumentException.class, () -> {
+            LuisApplication lA = new LuisApplication("https://westus.api.cognitive.microsoft.com/luis/v3.0/apps/b31aeaf3-3511-495b-a07f-571fc873214b?verbose=true&timezoneOffset=-360&q=");
+        });
+        Assert.assertThrows(IllegalArgumentException.class, () -> {
+            LuisApplication lA = new LuisApplication("https://westus.api.cognitive.microsoft.com?verbose=true&timezoneOffset=-360&subscription-key=048ec46dc58e495482b0c447cfdbd291&q=");
+        });
+    }
 }

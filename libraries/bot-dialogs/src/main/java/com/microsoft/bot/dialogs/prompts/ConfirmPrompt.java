@@ -32,7 +32,7 @@ import org.javatuples.Triplet;
 public class ConfirmPrompt extends Prompt<Boolean> {
 
     /**
-     * A dictionary of Default Choices based on {@link GetSupportedCultures} . Can
+     * A map of Default Choices based on {@link GetSupportedCultures} . Can
      * be replaced by user using the constructor that contains choiceDefaults.
      */
     private Map<String, Triplet<Choice, Choice, ChoiceFactoryOptions>> choiceDefaults;
@@ -79,14 +79,11 @@ public class ConfirmPrompt extends Prompt<Boolean> {
         for (PromptCultureModel model : PromptCultureModels.getSupportedCultures()) {
             Choice yesChoice = new Choice(model.getYesInLanguage());
             Choice noChoice = new Choice(model.getNoInLanguage());
-            ChoiceFactoryOptions factoryOptions = new ChoiceFactoryOptions() {
-                {
-                    setInlineSeparator(model.getSeparator());
-                    setInlineOr(model.getInlineOr());
-                    setInlineOrMore(model.getInlineOrMore());
-                    setIncludeNumbers(true);
-                }
-            };
+            ChoiceFactoryOptions factoryOptions = new ChoiceFactoryOptions();
+            factoryOptions.setInlineSeparator(model.getSeparator());
+            factoryOptions.setInlineOr(model.getInlineOr());
+            factoryOptions.setInlineOrMore(model.getInlineOrMore());
+            factoryOptions.setIncludeNumbers(true);
             choiceDefaults.put(model.getLocale(), new Triplet<Choice,
                                                               Choice,
                                                               ChoiceFactoryOptions>(yesChoice,
@@ -255,8 +252,7 @@ public class ConfirmPrompt extends Prompt<Boolean> {
         }
 
         // Send prompt
-         turnContext.sendActivity(prompt).join();
-         return CompletableFuture.completedFuture(null);
+         return turnContext.sendActivity(prompt).thenApply(result -> null);
     }
 
     /**
@@ -313,12 +309,9 @@ public class ConfirmPrompt extends Prompt<Boolean> {
                     // The text may be a number in which case we will interpret that as a choice.
                     Pair<Choice, Choice> confirmedChoices = confirmChoices != null ? confirmChoices
                                             : new Pair<Choice, Choice>(defaults.getValue0(), defaults.getValue1());
-                    ArrayList<Choice> choices = new ArrayList<Choice>() {
-                        {
-                            add(confirmedChoices.getValue0());
-                            add(confirmedChoices.getValue1());
-                        }
-                    };
+                    ArrayList<Choice> choices = new ArrayList<Choice>();
+                    choices.add(confirmedChoices.getValue0());
+                    choices.add(confirmedChoices.getValue1());
 
                     List<ModelResult<FoundChoice>> secondAttemptResults =
                             ChoiceRecognizers.recognizeChoices(utterance, choices);

@@ -7,6 +7,8 @@
 package com.microsoft.bot.connector.rest;
 
 import com.microsoft.bot.connector.Async;
+import java.net.URLEncoder;
+import org.apache.commons.lang3.StringUtils;
 import retrofit2.Retrofit;
 import com.microsoft.bot.connector.Attachments;
 import com.google.common.reflect.TypeToken;
@@ -98,7 +100,7 @@ public class RestAttachments implements Attachments {
             } catch (ErrorResponseException e) {
                 throw e;
             } catch (Throwable t) {
-                throw new ErrorResponseException("getAttachmentInfoAsync", responseBodyResponse);
+                throw new ErrorResponseException("getAttachmentInfo", responseBodyResponse);
             }
         });
     }
@@ -144,7 +146,7 @@ public class RestAttachments implements Attachments {
             } catch (ErrorResponseException e) {
                 throw e;
             } catch (Throwable t) {
-                throw new ErrorResponseException("getAttachmentAsync", responseBodyResponse);
+                throw new ErrorResponseException("getAttachment", responseBodyResponse);
             }
         });
     }
@@ -164,5 +166,31 @@ public class RestAttachments implements Attachments {
             }.getType())
             .registerError(ErrorResponseException.class)
             .build(response);
+    }
+
+    /**
+     * Get the URI of an attachment view.
+     * @param attachmentId id of the attachment.
+     * @param viewId default is "original".
+     * @return URI of the attachment.
+     */
+    @Override
+    public String getAttachmentUri(String attachmentId, String viewId) {
+        if (StringUtils.isEmpty(attachmentId)) {
+            throw new IllegalArgumentException("Must provide an attachmentId");
+        }
+
+        if (StringUtils.isEmpty(viewId)) {
+            viewId = "original";
+        }
+
+        String baseUrl = client.baseUrl();
+        String uri = baseUrl
+            + (baseUrl.endsWith("/") ? "" : "/")
+            + "v3/attachments/{attachmentId}/views/{viewId}";
+        uri = uri.replace("{attachmentId}", URLEncoder.encode(attachmentId));
+        uri = uri.replace("{viewId}", URLEncoder.encode(viewId));
+
+        return uri;
     }
 }

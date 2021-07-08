@@ -3,68 +3,68 @@
 
 package com.microsoft.bot.ai.luis;
 
-import org.apache.http.NameValuePair;
-import org.apache.http.client.utils.URIBuilder;
+import okhttp3.HttpUrl;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.UUID;
 
+import org.apache.commons.lang3.StringUtils;
+
 /**
- * Luis Application representation with information necessary to query the specific Luis Application.
+ * Luis Application representation with information necessary to query the
+ * specific Luis Application. Data describing a LUIS application.
  *
  */
 public class LuisApplication {
 
     /**
-     * Luis application ID.
+     * LUIS application ID.
      */
     private String applicationId;
 
     /**
-     * Luis subscription or endpoint key.
+     * LUIS subscription or endpoint key.
      */
     private String endpointKey;
 
     /**
-     * Luis subscription or endpoint key.
+     * LUIS endpoint like https://westus.api.cognitive.microsoft.com.
      */
     private String endpoint;
 
     /**
-     *  Luis endpoint like https://westus.api.cognitive.microsoft.com.
+     * Initializes a new instance of the Luis Application class.
      */
     public LuisApplication() {
     }
 
     /**
      * Initializes a new instance of the Luis Application class.
+     *
      * @param applicationId Luis Application ID to query
-     * @param endpointKey LUIS subscription or endpoint key.
-     * @param endpoint LUIS endpoint to use like https://westus.api.cognitive.microsoft.com
+     * @param endpointKey   LUIS subscription or endpoint key.
+     * @param endpoint      LUIS endpoint to use like
+     *                      https://westus.api.cognitive.microsoft.com
      */
-    public LuisApplication(
-        String applicationId,
-        String endpointKey,
-        String endpoint) {
-        setLuisApplication(
-            applicationId,
-            endpointKey,
-            endpoint);
+    public LuisApplication(String applicationId, String endpointKey, String endpoint) {
+        setLuisApplication(applicationId, endpointKey, endpoint);
     }
 
     /**
      * Initializes a new instance of the Luis Application class.
-     * @param applicationEndpoint LUIS application query endpoint containing subscription key
-     *                            and application id as part of the url.
+     *
+     * @param applicationEndpoint LUIS application query endpoint containing
+     *                            subscription key and application id as part of the
+     *                            url.
      */
-    public LuisApplication(
-        String applicationEndpoint) {
+    public LuisApplication(String applicationEndpoint) {
         parse(applicationEndpoint);
     }
 
     /**
      * Sets Luis application ID to query.
+     *
      * @param applicationId Luis application ID to query.
      */
     public void setApplicationId(String applicationId) {
@@ -72,8 +72,9 @@ public class LuisApplication {
     }
 
     /**
-     * Gets Luis application ID.
-     * @return applicationId.
+     * Gets LUIS application ID.
+     *
+     * @return LUIS application ID.
      */
     public String getApplicationId() {
         return applicationId;
@@ -81,6 +82,7 @@ public class LuisApplication {
 
     /**
      * Sets the LUIS subscription or endpoint key.
+     *
      * @param endpointKey LUIS subscription or endpoint key.
      */
     public void setEndpointKey(String endpointKey) {
@@ -89,15 +91,17 @@ public class LuisApplication {
 
     /**
      * Gets the LUIS subscription or endpoint key.
-     * @return endpointKey.
+     *
+     * @return LUIS subscription or endpoint key.
      */
     public String getEndpointKey() {
         return endpointKey;
     }
 
     /**
-     * Sets Luis endpoint like https://westus.api.cognitive.microsoft.com.
-     * @param endpoint endpoint like https://westus.api.cognitive.microsoft.com.
+     * Sets LUIS endpoint like https://westus.api.cognitive.microsoft.com.
+     *
+     * @param endpoint LUIS endpoint where application is hosted.
      */
     public void setEndpoint(String endpoint) {
         this.endpoint = endpoint;
@@ -105,7 +109,8 @@ public class LuisApplication {
 
     /**
      * Gets the LUIS endpoint where application is hosted.
-     * @return endpoint.
+     *
+     * @return LUIS endpoint where application is hosted.
      */
     public String getEndpoint() {
         return endpoint;
@@ -114,21 +119,17 @@ public class LuisApplication {
     /**
      * Helper method to set and validate Luis arguments passed.
      */
-    private void setLuisApplication(
-        String applicationId,
-        String endpointKey,
-        String endpoint) {
+    private void setLuisApplication(String applicationId, String endpointKey, String endpoint) {
 
         if (!isValidUUID(applicationId)) {
             throw new IllegalArgumentException(String.format("%s is not a valid LUIS application id.", applicationId));
         }
 
-
         if (!isValidUUID(endpointKey)) {
             throw new IllegalArgumentException(String.format("%s is not a valid LUIS subscription key.", endpointKey));
         }
 
-        if (endpoint == null || endpoint.isEmpty()) {
+        if (StringUtils.isBlank(endpoint)) {
             endpoint = "https://westus.api.cognitive.microsoft.com";
         }
 
@@ -142,14 +143,13 @@ public class LuisApplication {
     }
 
     /**
-     * Helper method to parse validate and set Luis application members from the full application full endpoint.
+     * Helper method to parse validate and set Luis application members from the
+     * full application full endpoint.
      */
     private void parse(String applicationEndpoint) {
         String appId = "";
         try {
-            String[] segments = new URL(applicationEndpoint)
-                .getPath()
-                .split("/");
+            String[] segments = new URL(applicationEndpoint).getPath().split("/");
             for (int segment = 0; segment < segments.length - 1; segment++) {
                 if (segments[segment].equals("apps")) {
                     appId = segments[segment + 1].trim();
@@ -158,47 +158,25 @@ public class LuisApplication {
             }
         } catch (MalformedURLException e) {
             throw new IllegalArgumentException(
-                String.format(
-                    "Unable to create the LUIS endpoint with the given %s.",
-                    applicationEndpoint
-                )
-            );
+                    String.format("Unable to create the LUIS endpoint with the given %s.", applicationEndpoint));
         }
-
 
         if (appId.isEmpty()) {
             throw new IllegalArgumentException(
-                String.format(
-                    "Could not find application Id in %s",
-                    applicationEndpoint
-                )
-            );
+                    String.format("Could not find application Id in %s", applicationEndpoint));
         }
 
         try {
+            String endpointKeyParsed = HttpUrl.parse(applicationEndpoint).queryParameterValues("subscription-key")
+                    .stream().findFirst().orElse("");
 
-            String endpointKeyParsed = new URIBuilder(applicationEndpoint)
-                .getQueryParams()
-                .stream()
-                .filter(param -> param.getName()
-                    .equalsIgnoreCase("subscription-key"))
-                .map(NameValuePair::getValue)
-                .findFirst()
-                .orElse("");
-
-            String endpointPared = String.format(
-                "%s://%s",
-                new URL(applicationEndpoint).getProtocol(),
-                new URL(applicationEndpoint).toURI().getHost()
-            );
+            String endpointPared = String.format("%s://%s", new URL(applicationEndpoint).getProtocol(),
+                    new URL(applicationEndpoint).toURI().getHost());
 
             setLuisApplication(appId, endpointKeyParsed, endpointPared);
         } catch (URISyntaxException | MalformedURLException e) {
             throw new IllegalArgumentException(
-                String.format(
-                "Unable to create the LUIS endpoint with the given %s.",
-                applicationEndpoint
-            ));
+                    String.format("Unable to create the LUIS endpoint with the given %s.", applicationEndpoint));
         }
 
     }
@@ -206,10 +184,7 @@ public class LuisApplication {
     private boolean isValidUUID(String uuid) {
         try {
             if (!uuid.contains("-")) {
-                uuid = uuid.replaceAll(
-                    "(.{8})(.{4})(.{4})(.{4})(.+)",
-                    "$1-$2-$3-$4-$5"
-                );
+                uuid = uuid.replaceAll("(.{8})(.{4})(.{4})(.{4})(.+)", "$1-$2-$3-$4-$5");
             }
 
             return UUID.fromString(uuid).toString().equals(uuid);

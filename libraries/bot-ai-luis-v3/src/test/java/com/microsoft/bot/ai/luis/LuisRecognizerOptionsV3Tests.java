@@ -22,12 +22,10 @@ import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.apache.commons.io.FileUtils;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import java.io.File;
 import java.io.IOException;
@@ -43,7 +41,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 
-@ExtendWith(MockitoExtension.class)
+@RunWith(MockitoJUnitRunner.class)
 public class LuisRecognizerOptionsV3Tests {
 
     @Mock
@@ -60,31 +58,40 @@ public class LuisRecognizerOptionsV3Tests {
     String subscriptionKey = "b31aeaf3-3511-495b-a07f-571fc873214b";
     boolean mockLuisResponse = true;
 
-    @ParameterizedTest
-    @ValueSource(strings = {
-        "Composite1.json",
-        "Composite2.json",
-        "Composite3.json",
-        "DateTimeReference.json",
-        "DynamicListsAndList.json",
-        "ExternalEntitiesAndBuiltin.json",
-        "ExternalEntitiesAndComposite.json",
-        "ExternalEntitiesAndList.json",
-        "ExternalEntitiesAndRegex.json",
-        "ExternalEntitiesAndSimple.json",
-        "ExternalEntitiesAndSimpleOverride.json",
-        "GeoPeopleOrdinal.json",
-        "Minimal.json",
+    @Test
+    public void shouldParseLuisResponsesCorrectly_TurnContextPassed() {
+        String[] files = {
+            "Composite1.json",
+            "Composite2.json",
+            "Composite3.json",
+            "DateTimeReference.json",
+            "DynamicListsAndList.json",
+            "ExternalEntitiesAndBuiltin.json",
+            "ExternalEntitiesAndComposite.json",
+            "ExternalEntitiesAndList.json",
+            "ExternalEntitiesAndRegex.json",
+            "ExternalEntitiesAndSimple.json",
+            "ExternalEntitiesAndSimpleOverride.json",
+            "GeoPeopleOrdinal.json",
+            "Minimal.json",
+// TODO: This is disabled until the bug requiring instance data for geo is fixed.
 //        "MinimalWithGeo.json",
-        "NoEntitiesInstanceTrue.json",
-        "Patterns.json",
-        "Prebuilt.json",
-        "roles.json",
-        "TraceActivity.json",
-        "Typed.json",
-        "TypedPrebuilt.json"
-    }) // six numbers
-    public void shouldParseLuisResponsesCorrectly_TurnContextPassed(String fileName) {
+            "NoEntitiesInstanceTrue.json",
+            "Patterns.json",
+            "Prebuilt.json",
+            "roles.json",
+            "TraceActivity.json",
+            "Typed.json",
+            "TypedPrebuilt.json"
+        };
+
+        for (String file : files) {
+            shouldParseLuisResponsesCorrectly_TurnContextPassed(file);
+            reset(turnContext);
+        }
+    }
+
+    private void shouldParseLuisResponsesCorrectly_TurnContextPassed(String fileName) {
         RecognizerResult  result = null, expected  = null;
         MockWebServer mockWebServer = new MockWebServer();
 
@@ -93,7 +100,7 @@ public class LuisRecognizerOptionsV3Tests {
             String content = readFileContent("/src/test/java/com/microsoft/bot/ai/luis/testdata/" + fileName);
 
             //Extract V3 response
-            ObjectMapper mapper = new ObjectMapper();
+            ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
             JsonNode testData = mapper.readTree(content);
             JsonNode v3SettingsAndResponse = testData.get("v3");
             JsonNode v3Response = v3SettingsAndResponse.get("response");
@@ -118,13 +125,9 @@ public class LuisRecognizerOptionsV3Tests {
             LuisRecognizerOptionsV3 v3 = buildTestRecognizer(endpoint, testSettings);
 
             // Run test
-            Activity activity = new Activity() {
-                {
-                    setText(testData.get("text").asText());
-                    setType(ActivityTypes.MESSAGE);
-                    setChannelId("EmptyContext");
-                }
-            };
+            Activity activity = new Activity(ActivityTypes.MESSAGE);
+            activity.setText(testData.get("text").asText());
+            activity.setChannelId("EmptyContext");
             doReturn(activity)
                 .when(turnContext)
                 .getActivity();
@@ -170,7 +173,7 @@ public class LuisRecognizerOptionsV3Tests {
             String content = readFileContent("/src/test/java/com/microsoft/bot/ai/luis/testdata/ExternalRecognizer.json");
 
             //Extract V3 response
-            ObjectMapper mapper = new ObjectMapper();
+            ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
             JsonNode testData = mapper.readTree(content);
             JsonNode v3SettingsAndResponse = testData.get("v3");
             JsonNode v3Response = v3SettingsAndResponse.get("response");
@@ -192,13 +195,9 @@ public class LuisRecognizerOptionsV3Tests {
             LuisRecognizerOptionsV3 v3 = buildTestRecognizer(endpoint, testSettings);
             v3.setExternalEntityRecognizer(recognizer);
 
-            Activity activity = new Activity() {
-                {
-                    setText(testData.get("text").asText());
-                    setType(ActivityTypes.MESSAGE);
-                    setChannelId("EmptyContext");
-                }
-            };
+            Activity activity = new Activity(ActivityTypes.MESSAGE);
+            activity.setText(testData.get("text").asText());
+            activity.setChannelId("EmptyContext");
 
             doReturn(CompletableFuture.completedFuture(new ResourceResponse()))
                 .when(turnContext)
@@ -206,9 +205,11 @@ public class LuisRecognizerOptionsV3Tests {
 
             when(dC.getContext()).thenReturn(turnContext);
 
-            doReturn(CompletableFuture.supplyAsync(() -> new RecognizerResult(){{
-                setEntities(testSettings.get("ExternalRecognizerResult"));
-            }}))
+            doReturn(CompletableFuture.supplyAsync(() -> {
+                RecognizerResult recognizerResult = new RecognizerResult();
+                recognizerResult.setEntities(testSettings.get("ExternalRecognizerResult"));
+                return recognizerResult;
+            }))
                 .when(recognizer)
                 .recognize(any(DialogContext.class), any(Activity.class));
 
@@ -238,13 +239,9 @@ public class LuisRecognizerOptionsV3Tests {
 
     public static TurnContext createContext(String message) {
 
-        Activity activity = new Activity() {
-            {
-                setText(message);
-                setType(ActivityTypes.MESSAGE);
-                setChannelId("EmptyContext");
-            }
-        };
+        Activity activity = new Activity(ActivityTypes.MESSAGE);
+        activity.setText(message);
+        activity.setChannelId("EmptyContext");
 
         return new TurnContextImpl(new NotImplementedAdapter(), activity);
     }
@@ -302,7 +299,7 @@ public class LuisRecognizerOptionsV3Tests {
     }
 
     private HttpUrl initializeMockServer(MockWebServer mockWebServer, JsonNode v3Response, String url) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
         String mockResponse = mapper.writeValueAsString(v3Response);
         mockWebServer.enqueue(new MockResponse()
             .addHeader("Content-Type", "application/json; charset=utf-8")
@@ -314,21 +311,21 @@ public class LuisRecognizerOptionsV3Tests {
     }
 
     private LuisRecognizerOptionsV3 buildTestRecognizer (String endpoint, JsonNode testSettings) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
         ObjectReader readerDynamicList = mapper.readerFor(new TypeReference<List<DynamicList>>() {});
         ObjectReader readerExternalentities = mapper.readerFor(new TypeReference<List<ExternalEntity>>() {});
-        return new LuisRecognizerOptionsV3(
+        LuisRecognizerOptionsV3 recognizer = new LuisRecognizerOptionsV3(
             new LuisApplication(
                 this.applicationId,
                 this.subscriptionKey,
-                endpoint)) {{
-            setIncludeInstanceData(testSettings.get("IncludeInstanceData").asBoolean());
-            setIncludeAllIntents(testSettings.get("IncludeAllIntents").asBoolean());
-            setVersion(testSettings.get("Version") == null ? null : testSettings.get("Version").asText());
-            setDynamicLists(testSettings.get("DynamicLists") == null ? null : readerDynamicList.readValue(testSettings.get("DynamicLists")));
-            setExternalEntities(testSettings.get("ExternalEntities") == null ? null : readerExternalentities.readValue(testSettings.get("ExternalEntities")));
-            setDateTimeReference(testSettings.get("DateTimeReference") == null ? null : testSettings.get("DateTimeReference").asText());
-        }};
+                endpoint));
+        recognizer.setIncludeInstanceData(testSettings.get("IncludeInstanceData").asBoolean());
+        recognizer.setIncludeAllIntents(testSettings.get("IncludeAllIntents").asBoolean());
+        recognizer.setVersion(testSettings.get("Version") == null ? null : testSettings.get("Version").asText());
+        recognizer.setDynamicLists(testSettings.get("DynamicLists") == null ? null : readerDynamicList.readValue(testSettings.get("DynamicLists")));
+        recognizer.setExternalEntities(testSettings.get("ExternalEntities") == null ? null : readerExternalentities.readValue(testSettings.get("ExternalEntities")));
+        recognizer.setDateTimeReference(testSettings.get("DateTimeReference") == null ? null : testSettings.get("DateTimeReference").asText());
+        return recognizer;
     }
 
 }

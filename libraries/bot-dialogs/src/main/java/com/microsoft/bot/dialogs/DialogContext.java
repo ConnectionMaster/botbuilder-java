@@ -10,6 +10,7 @@ import com.microsoft.bot.dialogs.prompts.PromptOptions;
 import com.microsoft.bot.connector.Async;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.StringUtils;
 
@@ -163,14 +164,6 @@ public class DialogContext {
      */
     public TurnContextStateCollection getServices() {
         return services;
-    }
-
-    /**
-     * Gets the current DialogManager for this dialogContext.
-     * @return The root dialogManager that was used to create this dialog context chain.
-     */
-    public DialogManager getDialogManager() {
-        return getContext().getTurnState().get(DialogManager.class);
     }
 
     /**
@@ -494,11 +487,10 @@ public class DialogContext {
      */
     public CompletableFuture<Boolean> emitEvent(String name, Object value, boolean bubble, boolean fromLeaf) {
         // Initialize event
-        DialogEvent dialogEvent = new DialogEvent() {{
-            setBubble(bubble);
-            setName(name);
-            setValue(value);
-        }};
+        DialogEvent dialogEvent = new DialogEvent();
+        dialogEvent.setBubble(bubble);
+        dialogEvent.setName(name);
+        dialogEvent.setValue(value);
 
         DialogContext dc = this;
 
@@ -529,13 +521,24 @@ public class DialogContext {
     }
 
     /**
-     * Obtain the CultureInfo in DialogContext.
+     * Obtain the locale in DialogContext.
      * @return A String representing the current locale.
      */
     public String getLocale() {
-        return getContext() != null ? getContext().getLocale() : null;
-    }
+        // turn.locale is the highest precedence.
+        String locale = (String) state.get(TurnContext.STATE_TURN_LOCALE);
+        if (!StringUtils.isEmpty(locale)) {
+            return locale;
+        }
 
+        // If turn.locale was not populated, fall back to activity locale
+        locale = getContext().getActivity().getLocale();
+        if (!StringUtils.isEmpty(locale)) {
+            return locale;
+        }
+
+        return Locale.getDefault().toString();
+    }
 
     /**
      * @param reason
@@ -544,7 +547,6 @@ public class DialogContext {
     private CompletableFuture<Void> endActiveDialog(DialogReason reason) {
         return endActiveDialog(reason, null);
     }
-
 
     /**
      * @param reason

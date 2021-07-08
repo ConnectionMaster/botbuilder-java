@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.microsoft.bot.builder.TurnContextStateCollection;
 import com.microsoft.bot.schema.Serialization;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
@@ -22,72 +23,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
-import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.lang3.StringUtils;
-
-/**
- * Generic Arraylist of Object.
- */
-class Segments extends ArrayList<Object> {
-
-    /**
-     * Returns the first item in the collection.
-     * @return the first object.
-     */
-    public Object first() {
-        return get(0);
-    }
-
-    /**
-     * Returns the last item in the collection.
-     * @return the last object.
-     */
-    public Object last() {
-        return get(size() - 1);
-    }
-
-    /**
-     * Gets the SegmentType at the specified index.
-     * @param index Index of the requested segment.
-     * @return The SegmentType of item at the requested index.
-     */
-    public SegmentType getSegment(int index) {
-        return new SegmentType(get(index));
-    }
-}
-
-/**
- * A class wraps an Object and can assist in determining if it's an integer.
- */
-@SuppressWarnings("checkstyle:VisibilityModifier")
-class SegmentType {
-
-    public boolean isInt;
-    public int intValue;
-    public Segments segmentsValue;
-    public String stringValue;
-
-    /**
-     *
-     * @param value The object to create a SegmentType for.
-     */
-    SegmentType(Object value) {
-        try {
-            intValue = Integer.parseInt((String) value);
-            isInt = true;
-        } catch (NumberFormatException e) {
-            isInt = false;
-        }
-
-        if (!isInt) {
-            if (value instanceof Segments) {
-                segmentsValue = (Segments) value;
-            } else {
-                stringValue = (String) value;
-            }
-        }
-    }
-}
 
 /**
  * Helper methods for working with dynamic json objects.
@@ -307,7 +243,9 @@ public final class ObjectPath {
         } else if (obj instanceof Map) {
             return ((Map<String, Object>) obj).keySet();
         } else if (obj instanceof JsonNode) {
-            return IteratorUtils.toList(((JsonNode) obj).fieldNames());
+            List<String> fields = new ArrayList<>();
+            ((JsonNode) obj).fieldNames().forEachRemaining(fields::add);
+            return fields;
         } else {
             List<String> fields = new ArrayList<>();
             for (Field field : obj.getClass().getDeclaredFields()) {
@@ -662,6 +600,8 @@ public final class ObjectPath {
 
                 if (current instanceof List) {
                     current = ((List<Object>) current).get(index);
+                } else if (current instanceof ArrayNode) {
+                    current = ((ArrayNode) current).get(index);
                 } else {
                     current = Array.get(current, index);
                 }
@@ -696,6 +636,22 @@ public final class ObjectPath {
             return null;
         }
 
+        // Because TurnContextStateCollection is not implemented as a Map<String, Object> we need to
+        // set obj to the Map<String, Object> which holds the state values which is retrieved from calling
+        // getTurnStateServices()
+        if (obj instanceof TurnContextStateCollection) {
+            Map<String, Object> dict = ((TurnContextStateCollection) obj).getTurnStateServices();
+            List<Entry<String, Object>> matches = dict.entrySet().stream()
+                .filter(key -> key.getKey().equalsIgnoreCase(property))
+                .collect(Collectors.toList());
+
+            if (matches.size() > 0) {
+                return matches.get(0).getValue();
+            }
+
+            return null;
+        }
+
         if (obj instanceof Map) {
             Map<String, Object> dict = (Map<String, Object>) obj;
             List<Entry<String, Object>> matches = dict.entrySet().stream()
@@ -715,7 +671,7 @@ public final class ObjectPath {
             while (fields.hasNext()) {
                 String field = fields.next();
                 if (field.equalsIgnoreCase(property)) {
-                    return node.findValue(property);
+                    return node.findValue(field);
                 }
             }
             return null;

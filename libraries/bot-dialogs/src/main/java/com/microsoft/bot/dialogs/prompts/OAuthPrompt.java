@@ -38,6 +38,7 @@ import com.microsoft.bot.schema.Attachment;
 import com.microsoft.bot.schema.CardAction;
 import com.microsoft.bot.schema.InputHints;
 import com.microsoft.bot.schema.OAuthCard;
+import com.microsoft.bot.schema.Serialization;
 import com.microsoft.bot.schema.SignInConstants;
 import com.microsoft.bot.schema.SignInResource;
 import com.microsoft.bot.schema.SigninCard;
@@ -265,7 +266,7 @@ public class OAuthPrompt extends Dialog {
             Object tokenResponseObject = turnContext.getActivity().getValue();
             TokenResponse token = null;
             if (tokenResponseObject != null) {
-                token = (TokenResponse) tokenResponseObject;
+                token = Serialization.getAs(tokenResponseObject, TokenResponse.class);
             }
             result.setSucceeded(true);
             result.setValue(token);
@@ -341,9 +342,8 @@ public class OAuthPrompt extends Dialog {
                  sendInvokeResponse(turnContext, HttpURLConnection.HTTP_INTERNAL_ERROR, null);
             }
         } else if (isTokenExchangeRequestInvoke(turnContext)) {
-            TokenExchangeInvokeRequest tokenExchangeRequest =
-                                turnContext.getActivity().getValue() instanceof TokenExchangeInvokeRequest
-                                ? (TokenExchangeInvokeRequest) turnContext.getActivity().getValue() : null;
+            TokenExchangeInvokeRequest tokenExchangeRequest = Serialization.getAs(turnContext.getActivity().getValue(),
+                                                                                  TokenExchangeInvokeRequest.class);
 
             if (tokenExchangeRequest == null) {
                 TokenExchangeInvokeResponse response = new TokenExchangeInvokeResponse();
@@ -353,7 +353,7 @@ public class OAuthPrompt extends Dialog {
                                             + "TokenExchangeInvokeRequest value. This is required to be "
                                             + "sent with the InvokeActivity.");
                  sendInvokeResponse(turnContext, HttpURLConnection.HTTP_BAD_REQUEST, response).join();
-            } else if (tokenExchangeRequest.getConnectionName() != settings.getConnectionName()) {
+            } else if (!tokenExchangeRequest.getConnectionName().equals(settings.getConnectionName())) {
                 TokenExchangeInvokeResponse response = new TokenExchangeInvokeResponse();
                 response.setId(tokenExchangeRequest.getId());
                 response.setConnectionName(settings.getConnectionName());
@@ -407,11 +407,11 @@ public class OAuthPrompt extends Dialog {
 
                     result.setSucceeded(true);
                     TokenResponse finalResponse = tokenExchangeResponse;
-                    result.setValue(new TokenResponse() { {
-                        setChannelId(finalResponse.getChannelId());
-                        setConnectionName(finalResponse.getConnectionName());
-                        setToken(finalResponse.getToken());
-                    }});
+                    TokenResponse response = new TokenResponse();
+                    response.setChannelId(finalResponse.getChannelId());
+                    response.setConnectionName(finalResponse.getConnectionName());
+                    response.setToken(finalResponse.getToken());
+                    result.setValue(response);
                 }
             }
         } else if (turnContext.getActivity().getType().equals(ActivityTypes.MESSAGE)) {

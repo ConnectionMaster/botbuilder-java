@@ -6,8 +6,10 @@ package com.microsoft.bot.schema;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -26,6 +28,7 @@ public final class Serialization {
     static {
         objectMapper = new ObjectMapper();
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        objectMapper.configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true);
         objectMapper.findAndRegisterModules();
 
         // NOTE: Undetermined if we should accommodate non-public fields.  The normal
@@ -258,6 +261,14 @@ public final class Serialization {
      */
     public static ObjectNode createObjectNode() {
         return objectMapper.createObjectNode();
+    }
+
+    /**
+     * Creates an ArrayNode.
+     * @return ArrayNode.
+     */
+    public static ArrayNode createArrayNode() {
+        return objectMapper.createArrayNode();
     }
 }
 
